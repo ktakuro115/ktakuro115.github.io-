@@ -2,7 +2,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=no">
-    <title>GB Camera V23 (No Frame on Rec)</title>
+    <title>GB Camera V21 (Buffer Fix)</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -97,10 +97,12 @@
             top: 0; left: 0;
         }
 
+        /* 表示用 */
         #gbCanvas {
             z-index: 10;
         }
 
+        /* 録画用: 完全な透明(0)だと描画省略されることがあるため、ごくわずかに不透明にする */
         #recCanvas { 
             z-index: 50; 
             opacity: 0.01; 
@@ -289,6 +291,7 @@
         const recCanvas = document.getElementById('recCanvas');
         const recCtx = recCanvas.getContext('2d', { willReadFrequently: true });
 
+        // ★バッファ用キャンバス (フレーム合成用)
         const bufferCanvas = document.createElement('canvas');
         bufferCanvas.width = REC_RES; 
         bufferCanvas.height = REC_RES;
@@ -464,23 +467,22 @@
             }
         }
 
+        // ★修正: バッファ経由で録画用フレームを生成する関数
         function renderToRecCanvas() {
             bufferCtx.imageSmoothingEnabled = false;
+            // 1. バッファに映像を描く
             bufferCtx.drawImage(offCanvas, 0, 0, REC_RES, REC_RES);
+            // 2. バッファにフレームを重ねる
             try {
-                // 録画用バッファにもdrawOverlayを呼ぶが、
-                // isRecordingがtrueなので関数内で即returnされる
                 drawOverlay(bufferCtx, REC_RES);
             } catch(e) { console.warn(e); }
+            // 3. 完成した画像を録画用キャンバスに転写 (1回だけ描画)
             recCtx.drawImage(bufferCanvas, 0, 0);
         }
 
         function drawOverlay(ctx, size) {
-            // ★追加: 録画中はフレームを描画しない（画面上も消える）
-            if (isRecording) return;
-
             const type = frames[config.frameIdx];
-            if (type === "OFF") return;
+            if (type === "OFF") return; // OFFなら何もしない
 
             const is16 = palettes[config.paletteIdx].name === "16 COLOR";
             const pal = !is16 ? palettes[config.paletteIdx].colors : null;
@@ -521,30 +523,15 @@
             }
         }
 
-        function showLoadingScreen() {
-            const pal = palettes[0].colors;
-            const bg = `rgb(${pal[3].join(',')})`;
-            const fg = `rgb(${pal[0].join(',')})`;
-            
-            gbCtx.fillStyle = bg;
-            gbCtx.fillRect(0, 0, DISP_RES, DISP_RES);
-            
-            gbCtx.fillStyle = fg;
-            gbCtx.font = "70px 'Press Start 2P'"; 
-            gbCtx.textAlign = "center";
-            gbCtx.textBaseline = "middle";
-            gbCtx.shadowColor = `rgba(${pal[1].join(',')}, 0.5)`;
-            gbCtx.shadowOffsetX = 4; gbCtx.shadowOffsetY = 4;
-            gbCtx.fillText("GB CAMERA", DISP_RES/2, DISP_RES/2);
-            gbCtx.shadowColor = "transparent";
-        }
-
         let lastTime = 0;
         function loop(timestamp) {
             if (video.readyState === 4 && previewContainer.style.display !== 'flex') {
                 if (timestamp - lastTime >= 1000/FPS) {
                     if(processPixels()) {
+                        // 表示用 (直接描画)
                         renderFrame(gbCtx, DISP_RES);
+                        
+                        // 録画用 (バッファ経由)
                         if (isRecording) {
                             renderToRecCanvas();
                         }
@@ -608,6 +595,7 @@
                 if (mediaRecorder && mediaRecorder.state === 'inactive') {
                     isLongPress = true;
                     recordedChunks = []; 
+                    // 録画開始時に一度強制描画
                     renderToRecCanvas();
                     mediaRecorder.start(1000); 
                     isRecording = true; 
@@ -651,7 +639,6 @@
         }
 
         autoFitScreen();
-        document.fonts.ready.then(showLoadingScreen);
         initCamera(); 
     </script>
 </body>

@@ -2,7 +2,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=no">
-    <title>GB Camera V22 (Boot & Fonts)</title>
+    <title>GB Camera V23 (Full 8-bit Fonts)</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -12,7 +12,7 @@
         /* ----- BASIC SETUP ----- */
         :root {
             --gb-body: #c0c0c0;
-            --gb-screen-bg: #8bac0f; /* Classic Green color for boot */
+            --gb-screen-bg: #8bac0f; /* Classic Green for boot */
             --gb-screen-dark: #0f380f;
             --font-main: 'Press Start 2P', monospace;
         }
@@ -34,6 +34,11 @@
             align-items: center;
             touch-action: none;
             user-select: none;
+        }
+
+        /* 全ての要素にフォントを強制適用 */
+        button, input, select, textarea {
+            font-family: var(--font-main);
         }
 
         /* ----- CONTAINER ----- */
@@ -60,15 +65,13 @@
             border-bottom: 4px solid #999;
         }
 
-        /* ★変更点: ロゴを8bitフォントに */
         .logo-text {
             position: absolute; top: 12px; left: 25px;
-            color: #303080; /* Nintendo Blue-ish */
+            color: #303080; 
             font-size: 12px; 
-            font-weight: normal; /* Pixel fonts usually don't need bold */
+            font-weight: normal;
             font-style: normal;
             letter-spacing: -1px;
-            font-family: var(--font-main);
             text-shadow: 1px 1px 0 rgba(255,255,255,0.3);
         }
 
@@ -94,15 +97,14 @@
             isolation: isolate;
         }
 
-        /* ★追加: 起動画面 */
+        /* 起動画面 */
         #bootScreen {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background-color: #8bac0f; /* Lightest Green */
+            background-color: #8bac0f;
             z-index: 300;
             display: flex; flex-direction: column;
             align-items: center; justify-content: center;
-            color: #0f380f; /* Darkest Green */
-            font-family: var(--font-main);
+            color: #0f380f;
             transition: opacity 0.5s ease-out;
         }
         .nintendo-logo {
@@ -153,7 +155,7 @@
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
             background: rgba(0,0,0,0.8); color: #fff; padding: 8px 12px;
             font-size: 10px; display: none; pointer-events: none; white-space: nowrap; border-radius: 4px;
-            font-family: var(--font-main); border: 1px solid #fff; text-transform: uppercase; z-index: 100;
+            border: 1px solid #fff; text-transform: uppercase; z-index: 100;
         }
 
         /* PREVIEW OVERLAY */
@@ -171,7 +173,7 @@
         }
         #previewControls button {
             background: #cc3333; color: #fff; border: 2px solid #fff; 
-            padding: 6px 10px; font-family: var(--font-main); font-size: 8px; 
+            padding: 6px 10px; font-size: 8px; 
             cursor: pointer; box-shadow: 2px 2px 4px rgba(0,0,0,0.5);
         }
         #previewControls button:active { transform: translate(1px, 1px); box-shadow: inset 1px 1px 3px rgba(0,0,0,0.6); }
@@ -199,12 +201,11 @@
         .ab-area { position: absolute; top: 10px; right: 25px; width: 130px; height: 60px; transform: rotate(-25deg); display: flex; gap: 15px; align-items: flex-end; }
         .btn-wrapper-ab { display: flex; flex-direction: column; align-items: center; }
         
-        /* ★変更点: ボタン文字を8bitフォントに */
         .btn-round { 
             width: 45px; height: 45px; background: #cc3333; border-radius: 50%; 
             box-shadow: 0px 4px 6px rgba(0,0,0,0.6), inset 0px 1px 1px rgba(255,255,255,0.4); 
             display: flex; justify-content: center; align-items: center; 
-            font-family: var(--font-main); font-size: 10px; color: rgba(0,0,0,0.3); 
+            font-size: 10px; color: rgba(0,0,0,0.3); 
             cursor: pointer; transition: transform 0.05s, box-shadow 0.05s; 
         }
         .btn-round:active { transform: translate(1px, 1px); box-shadow: inset 0 0 8px rgba(0,0,0,0.8), 0 0 2px rgba(0,0,0,0.2); }
@@ -215,15 +216,24 @@
         .btn-oval { width: 50px; height: 12px; background: #666; border-radius: 10px; transform: rotate(-25deg); box-shadow: 1px 1px 3px rgba(0,0,0,0.4); cursor: pointer; transition: transform 0.05s, box-shadow 0.05s; }
         .btn-oval:active { transform: rotate(-25deg) translate(1px, 1px); box-shadow: inset 1px 1px 5px rgba(0,0,0,0.7); }
         
-        /* ★変更点: ラベル文字を8bitフォントに */
         .meta-label { 
             margin-top: 8px; margin-left: 5px; 
-            font-family: var(--font-main); font-size: 6px; 
-            color: #444; letter-spacing: 0px; transform: rotate(-25deg); 
+            font-size: 6px; color: #444; letter-spacing: 0px; transform: rotate(-25deg); 
         }
 
         .zoom-integrator { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); width: 240px; height: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        .zoom-label { font-size: 8px; color: #666; letter-spacing: 2px; margin-bottom: 5px; text-shadow: 1px 1px 0 rgba(255,255,255,0.5); font-weight: bold; }
+        
+        /* ★変更点: 太字(bold)を外して明示的に8bitフォント指定 */
+        .zoom-label { 
+            font-family: var(--font-main);
+            font-size: 6px; /* ピクセルフォントは小さめが綺麗 */
+            color: #666; 
+            letter-spacing: 0px; 
+            margin-bottom: 5px; 
+            text-shadow: 1px 1px 0 rgba(255,255,255,0.5); 
+            font-weight: normal; /* ピクセルフォントにはboldは不要 */
+        }
+
         .slider-container { display: flex; align-items: center; gap: 10px; background: #b6b6b6; padding: 5px 15px; border-radius: 30px; box-shadow: inset 2px 2px 5px rgba(0,0,0,0.3), inset -1px -1px 2px rgba(255,255,255,0.5); }
         
         #btnResetZoom, #btnReload { 
@@ -235,12 +245,14 @@
         #btnResetZoom:active, #btnReload:active { transform: scale(0.9); box-shadow: inset 0 0 8px rgba(0,0,0,0.6); }
         
         #btnResetZoom::after { 
-            content: "R"; font-family: var(--font-main); font-size: 6px; color: #333;
+            content: "R"; font-size: 6px; color: #333;
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); 
             line-height: 1; display: block;
         }
         #btnReload::after { 
-            content: "↻"; font-size: 12px; color: #333; font-weight: bold; 
+            /* Unicodeの矢印の代わりに文字を使用すると完全な8bit感が出ますが、
+               今回は記号のままフォント適用を試みます */
+            content: "↻"; font-size: 10px; color: #333; font-weight: bold; 
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); 
             line-height: 1; display: block;
         }
@@ -321,7 +333,7 @@
         }
         window.addEventListener('load', () => {
             autoFitScreen();
-            // Boot Animation: Remove screen after delay
+            // Boot Animation
             setTimeout(() => {
                 const bs = document.getElementById('bootScreen');
                 bs.style.opacity = 0;
@@ -380,7 +392,7 @@
         let currentMediaBlob = null;
         let currentMediaExt = null;
         let recMimeType = '';
-        let savedFrameIdx = 0; // Store frame index when recording starts
+        let savedFrameIdx = 0; 
 
         function getSupportedMimeType() {
             const types = [
@@ -587,7 +599,6 @@
                 if (timestamp - lastTime >= 1000/FPS) {
                     if(processPixels()) {
                         renderFrame(gbCtx, DISP_RES);
-                        
                         if (isRecording) {
                             renderToRecCanvas();
                         }
@@ -630,7 +641,6 @@
         document.getElementById('btnSelect').addEventListener('click', (e) => {
             e.preventDefault(); 
             if(previewContainer.style.display === 'flex') return;
-            // 録画中は変更不可
             if(isRecording) { showToast("LOCKED IN REC"); return; }
 
             config.frameIdx = (config.frameIdx + 1) % frames.length;
@@ -654,11 +664,8 @@
                 if (mediaRecorder && mediaRecorder.state === 'inactive') {
                     isLongPress = true;
                     recordedChunks = []; 
-                    
-                    // ★変更点: 録画開始時にフレームを保存してOFFにする
                     savedFrameIdx = config.frameIdx;
-                    config.frameIdx = 0; // 0 = OFF
-
+                    config.frameIdx = 0; 
                     renderToRecCanvas();
                     mediaRecorder.start(1000); 
                     isRecording = true; 
@@ -677,8 +684,6 @@
                     mediaRecorder.stop(); 
                     isRecording = false; 
                     led.classList.remove('on'); 
-
-                    // ★変更点: 録画終了時にフレームを復元する
                     config.frameIdx = savedFrameIdx;
                 }
             } else {

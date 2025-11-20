@@ -228,7 +228,7 @@
             width: 45px; height: 45px; background: #cc3333; border-radius: 50%; 
             box-shadow: 0px 4px 6px rgba(0,0,0,0.6), inset 0px 1px 1px rgba(255,255,255,0.4);
             display: flex; justify-content: center; align-items: center; font-size: 10px; color: rgba(0,0,0,0.2); 
-            cursor: pointer; position: relative; -webkit-tap-highlight-color: transparent; 
+            cursor: pointer; position: relative; 
             transition: transform 0.05s ease, box-shadow 0.05s ease;
         }
         /* A/B ボタンの凹み効果 */
@@ -508,72 +508,68 @@
             }, 1000);
         }
         
+        function drawCurrentFrameOnCanvas() {
+            const vw = video.videoWidth, vh = video.videoHeight;
+            const minDim = Math.min(vw, vh);
+            const zoomFactor = 1.0 / config.zoomLevel; 
+            let cropDim = Math.min(minDim, minDim * zoomFactor); 
+            let sx = Math.max(0, (vw - cropDim) / 2);
+            let sy = Math.max(0, (vh - cropDim) / 2);
+            
+            if (sx + cropDim > vw) cropDim = vw - sx;
+            if (sy + cropDim > vh) cropDim = vh - sy;
+            
+            offCtx.drawImage(video, sx, sy, cropDim, cropDim, 0, 0, GB_RES, GB_RES);
+            
+            const is16Color = palettes[config.paletteIdx].name === "16 COLOR";
+            const imgData = offCtx.getImageData(0,0,GB_RES,GB_RES); 
+            const d = imgData.data;
+            const cF = (259*(config.contrast*10+255))/(255*(259-config.contrast*10));
+            const bV = config.brightness*10;
+            const Q_STEPS = 4; const Q_MAX = Q_STEPS - 1; const Q_FACTOR = 255 / Q_MAX; 
+
+            let x = 0; let y = 0;
+            for(let i=0; i<d.length; i+=4) {
+                if (is16Color) {
+                    let r = cF * (d[i] - 128) + 128 + bV;
+                    let g = cF * (d[i+1] - 128) + 128 + bV;
+                    let b = cF * (d[i+2] - 128) + 128 + bV;
+                    r = Math.round(r / 255 * Q_MAX) * Q_FACTOR;
+                    g = Math.round(g / 255 * Q_MAX) * Q_FACTOR;
+                    b = Math.round(b / 255 * Q_MAX) * Q_FACTOR;
+                    d[i] = Math.min(255, Math.max(0, r));
+                    d[i+1] = Math.min(255, Math.max(0, g));
+                    d[i+2] = Math.min(255, Math.max(0, b));
+                } else {
+                    const pal = palettes[config.paletteIdx].colors;
+                    let g = 0.299*d[i] + 0.587*d[i+1] + 0.114*d[i+2];
+                    g = cF*(g-128)+128+bV;
+                    const dither = (bayerMatrix[y%4][x%4]-8)*4; 
+                    g += dither;
+                    let idx = 0; if (g>=64 && g<128) idx=1; else if (g>=128 && g<192) idx=2; else if (g>=192) idx=3;
+                    if (g<0) idx=0; if (g>255) idx=3;
+                    d[i]=pal[idx][0]; d[i+1]=pal[idx][1]; d[i+2]=pal[idx][2];
+                }
+                x++; if(x>=GB_RES){ x=0; y++; }
+            }
+            offCtx.putImageData(imgData,0,0);
+
+            ctx.imageSmoothingEnabled = false;
+            ctx.drawImage(offCanvas, 0, 0, FINAL_RES, FINAL_RES);
+
+            drawFrame(palettes[config.paletteIdx].colors, ctx); 
+        }
+
         function loop() {
             if (video.readyState === 4) {
-                const vw = video.videoWidth, vh = video.videoHeight;
-                const minDim = Math.min(vw, vh);
-                
                 if (previewContainer.style.display === 'flex') {
                     requestAnimationFrame(loop);
                     return;
                 }
                 
-                const zoomFactor = 1.0 / config.zoomLevel; 
-                let cropDim = Math.min(minDim, minDim * zoomFactor); 
-                let sx = Math.max(0, (vw - cropDim) / 2);
-                let sy = Math.max(0, (vh - cropDim) / 2);
-                
-                if (sx + cropDim > vw) cropDim = vw - sx;
-                if (sy + cropDim > vh) cropDim = vh - sy;
-                
-                offCtx.drawImage(video, sx, sy, cropDim, cropDim, 0, 0, GB_RES, GB_RES);
-                
+                drawCurrentFrameOnCanvas(); // 常にビデオとフレームを描画
+
                 const is16Color = palettes[config.paletteIdx].name === "16 COLOR";
-                
-                const imgData = offCtx.getImageData(0,0,GB_RES,GB_RES); 
-                const d = imgData.data;
-                const cF = (259*(config.contrast*10+255))/(255*(259-config.contrast*10));
-                const bV = config.brightness*10;
-                
-                const Q_STEPS = 4; const Q_MAX = Q_STEPS - 1; const Q_FACTOR = 255 / Q_MAX; 
-
-                let x = 0; let y = 0;
-                for(let i=0; i<d.length; i+=4) {
-                    
-                    if (is16Color) {
-                        let r = cF * (d[i] - 128) + 128 + bV;
-                        let g = cF * (d[i+1] - 128) + 128 + bV;
-                        let b = cF * (d[i+2] - 128) + 128 + bV;
-
-                        r = Math.round(r / 255 * Q_MAX) * Q_FACTOR;
-                        g = Math.round(g / 255 * Q_MAX) * Q_FACTOR;
-                        b = Math.round(b / 255 * Q_MAX) * Q_FACTOR;
-                        
-                        d[i] = Math.min(255, Math.max(0, r));
-                        d[i+1] = Math.min(255, Math.max(0, g));
-                        d[i+2] = Math.min(255, Math.max(0, b));
-                        
-                    } else {
-                        const pal = palettes[config.paletteIdx].colors;
-                        
-                        let g = 0.299*d[i] + 0.587*d[i+1] + 0.114*d[i+2];
-                        g = cF*(g-128)+128+bV;
-                        const dither = (bayerMatrix[y%4][x%4]-8)*4; 
-                        g += dither;
-                        let idx = 0; if (g>=64 && g<128) idx=1; else if (g>=128 && g<192) idx=2; else if (g>=192) idx=3;
-                        if (g<0) idx=0; if (g>255) idx=3;
-                        d[i]=pal[idx][0]; d[i+1]=pal[idx][1]; d[i+2]=pal[idx][2];
-                    }
-                    
-                    x++; if(x>=GB_RES){ x=0; y++; }
-                }
-                offCtx.putImageData(imgData,0,0);
-
-                ctx.imageSmoothingEnabled = false;
-                ctx.drawImage(offCanvas, 0, 0, FINAL_RES, FINAL_RES);
-
-                drawFrame(palettes[config.paletteIdx].colors, ctx);
-                
                 canvas.parentElement.querySelector('.scanlines').style.opacity = is16Color ? 0.1 : 0.4;
             }
             requestAnimationFrame(loop);
@@ -683,6 +679,8 @@
             if (isLongPress) {
                 if(isRecording) { mediaRecorder.stop(); isRecording = false; led.classList.remove('on'); }
             } else {
+                // ★修正: 静止画撮影時、フレームを再描画してからキャプチャ
+                drawCurrentFrameOnCanvas(); 
                 const dataURL = canvas.toDataURL('image/png', 1.0);
                 showImagePreview(dataURL);
                 canvas.style.opacity = 0; setTimeout(() => canvas.style.opacity = 1, 100);

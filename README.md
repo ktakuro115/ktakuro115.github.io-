@@ -1,8 +1,9 @@
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=no">
-    <title>GB Camera V28 (Rec Fix)</title>
+    <title>GB Camera V29 (Real Location)</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -121,7 +122,6 @@
         }
 
         #gbCanvas { z-index: 10; }
-        /* 録画用キャンバス: 透明度を確保しつつ描画除外されないようにする */
         #recCanvas { z-index: 50; opacity: 0.01; pointer-events: none; }
 
         .scanlines {
@@ -336,7 +336,8 @@
         const REC_RES = 540;    
         
         const FPS = 24;
-        const config = { paletteIdx: 0, frameIdx: 0, brightness: 0, contrast: 2, camFacing: 'environment', zoomLevel: 1.0, locationName: "SHIBUYA, TOKYO" };
+        // 初期地は空にしておく
+        const config = { paletteIdx: 0, frameIdx: 0, brightness: 0, contrast: 2, camFacing: 'environment', zoomLevel: 1.0, locationName: "GETTING LOCATION..." };
         
         const palettes = [
             { name: "CLASSIC GREEN", colors: [[15,56,15], [48,98,48], [139,172,15], [155,188,15]], border: "#306230" },
@@ -410,7 +411,6 @@
                 if (!recMimeType) {
                     showToast("REC NOT SUPPORTED");
                 } else {
-                    // ★修正: 録画用キャンバスを初期化してストリームを確実に有効化
                     recCtx.fillStyle = '#000';
                     recCtx.fillRect(0, 0, REC_RES, REC_RES);
                     
@@ -536,7 +536,6 @@
 
         function renderToRecCanvas() {
             bufferCtx.imageSmoothingEnabled = false;
-            // ★修正: バッファを確実にクリアしてから描画
             bufferCtx.clearRect(0, 0, REC_RES, REC_RES);
             bufferCtx.drawImage(offCanvas, 0, 0, REC_RES, REC_RES);
             try {
@@ -594,7 +593,6 @@
                 if (timestamp - lastTime >= 1000/FPS) {
                     if(processPixels()) {
                         renderFrame(gbCtx, DISP_RES);
-                        // ★修正: 録画中は確実に録画用キャンバスを更新する
                         if (isRecording) {
                             renderToRecCanvas();
                         }
@@ -660,14 +658,11 @@
                 if (mediaRecorder && mediaRecorder.state === 'inactive') {
                     isLongPress = true;
                     recordedChunks = []; 
-                    
                     savedFrameIdx = config.frameIdx;
                     config.frameIdx = 0; 
                     
-                    // ★修正: 録画開始フラグを立ててから強制描画、そして開始
                     isRecording = true; 
                     renderToRecCanvas();
-                    
                     mediaRecorder.start(1000); 
                     led.classList.add('on'); 
                     showToast("REC (FRAME OFF)");
@@ -705,8 +700,27 @@
         btnSave.addEventListener('click', saveMedia); btnCancel.addEventListener('click', hidePreview);
 
         function updateLocation() {
-            config.locationName = "GETTING LOCATION...";
-            setTimeout(() => { config.locationName = "SHIBUYA, TOKYO"; showToast("LOCATION READY"); }, 1000);
+            config.locationName = "SEARCHING...";
+            if(!navigator.geolocation) {
+                config.locationName = "GPS NOT SUPPORTED";
+                return;
+            }
+            navigator.geolocation.getCurrentPosition(async (pos) => {
+                const { latitude, longitude } = pos.coords;
+                try {
+                    const res = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`);
+                    const data = await res.json();
+                    const city = data.city || data.locality || data.principalSubdivision || "UNKNOWN";
+                    const country = data.countryCode || "";
+                    config.locationName = `${city}, ${country}`.toUpperCase();
+                    showToast("LOC FOUND");
+                } catch(e) {
+                    config.locationName = "DATA ERROR";
+                }
+            }, (err) => {
+                console.error(err);
+                config.locationName = "GPS ERROR";
+            });
         }
 
         initCamera(); 

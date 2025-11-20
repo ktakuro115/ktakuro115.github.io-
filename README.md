@@ -2,7 +2,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-    <title>GB Camera V16 (1080p) - 16 Color</title>
+    <title>GB Camera V16 (1080p) - Full Screen</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -31,6 +31,8 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
+            /* 画面いっぱいに拡大するため、overflow-yをautoにするとスクロール可能になるが、
+               ここでは本体を固定してoverflow:hiddenを維持する */
             touch-action: none;
             user-select: none;
             -webkit-user-select: none;
@@ -226,7 +228,7 @@
             transform: rotate(-25deg) translate(1px, 1px); 
             box-shadow: inset 1px 1px 5px rgba(0,0,0,0.7);
         }
-        .meta-label { margin-top: 8px; font-size: 8px; color: #444; font-family: var(--font-main); font-weight: bold; letter-spacing: 1px; transform: rotate(-25deg); }
+        .meta-label { margin-top: 8px; font-size: 8px; color: #444; font-weight: bold; letter-spacing: 1px; transform: rotate(-25deg); }
 
         /* ZOOM SLIDER */
         .zoom-integrator {
@@ -326,8 +328,9 @@
         
         function autoFitScreen() {
             const baseW = 340; const baseH = 600;
-            const s = Math.min(window.innerWidth/baseW, window.innerHeight/baseH) * 0.95;
-            container.style.transform = `scale(${Math.min(s, 1.5)})`;
+            // 【★修正箇所★】画面の高さに合わせて本体を拡大 (画面いっぱいに広がる)
+            const s = window.innerHeight / baseH; 
+            container.style.transform = `scale(${s})`;
         }
         window.addEventListener('load', autoFitScreen); window.addEventListener('resize', autoFitScreen);
 
@@ -344,7 +347,7 @@
             { name: "CYBER BLUE", colors: [[0,20,40], [0,70,110], [0,140,190], [180,230,255]], border: "#004070" },
             { name: "16 COLOR", colors: [], border: "#000" } 
         ];
-        const frames = ["OFF", "FILM", "SCANLINE", "DATETIME", "WHITE BORDER"]; // フレームリスト
+        const frames = ["OFF", "FILM", "SCANLINE", "DATETIME", "WHITE BORDER"]; 
         const bayerMatrix = [[0, 8, 2, 10],[12, 4, 14, 6],[3, 11, 1, 9],[15, 7, 13, 5]];
 
         const canvas = document.getElementById('gbCanvas');
@@ -553,7 +556,7 @@
             const dk = pal.length > 0 && !is16Color ? `rgb(${pal[0].join(',')})` : '#000', 
                   lt = pal.length > 0 && !is16Color ? `rgb(${pal[3].join(',')})` : '#FFF';
             ctx.fillStyle = dk;
-            const borderSize = 80; // WHITE BORDERの太さ (1080p基準)
+            const borderSize = 80; 
 
             if (type==="FILM") { 
                 ctx.fillRect(0,0,1080,60); ctx.fillRect(0,1020,1080,60); 
@@ -575,23 +578,16 @@
                 ctx.fillStyle=lt; ctx.font = "40px 'Press Start 2P'"; ctx.fillText(dateStr, 80, 40);
                 ctx.fillText(timeStr, 80, 75);
             }
-            // 新しい WHITE BORDER フレーム
+            // 修正された WHITE BORDER フレーム
             else if (type==="WHITE BORDER") {
                 ctx.fillStyle="white"; 
-                // 外側の枠
+                // 外側の白い枠のみを描画
                 ctx.fillRect(0, 0, 1080, borderSize); // 上
                 ctx.fillRect(0, 1080 - borderSize, 1080, borderSize); // 下
                 ctx.fillRect(0, borderSize, borderSize, 1080 - 2 * borderSize); // 左
                 ctx.fillRect(1080 - borderSize, borderSize, borderSize, 1080 - 2 * borderSize); // 右
                 
-                // 枠内にパレットのメインカラーで小さな縁取り
-                ctx.fillStyle = dk; 
-                const innerBorder = borderSize + 10;
-                ctx.fillRect(borderSize, borderSize, 1080 - 2*borderSize, 10); // 上内側
-                ctx.fillRect(borderSize, 1080 - borderSize - 10, 1080 - 2*borderSize, 10); // 下内側
-                ctx.fillRect(borderSize, borderSize, 10, 1080 - 2*borderSize); // 左内側
-                ctx.fillRect(1080 - borderSize - 10, borderSize, 10, 1080 - 2*borderSize); // 右内側
-
+                // ★黒いラインの描画コードを削除★
             }
         }
 

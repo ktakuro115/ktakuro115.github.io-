@@ -2,7 +2,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=no">
-    <title>GB Camera V16 (1080p) - Final Video Fix</title>
+    <title>GB Camera V16 (1080p) - Final</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -18,6 +18,10 @@
 
         body {
             background-color: #151515;
+            background-image: 
+                linear-gradient(rgba(50, 50, 50, 0.5) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(50, 50, 50, 0.5) 1px, transparent 1px);
+            background-size: 30px 30px;
             font-family: var(--font-main);
             height: 100vh;
             width: 100vw;
@@ -31,6 +35,7 @@
             user-select: none;
         }
 
+        /* ----- CONTAINER ----- */
         #gbContainer {
             width: 340px;
             height: 600px; 
@@ -38,6 +43,7 @@
             position: relative;
         }
 
+        /* ----- GAMEBOY BODY ----- */
         .gb-body {
             background: var(--gb-body);
             width: 100%;
@@ -59,6 +65,7 @@
             font-style: italic; letter-spacing: 1px;
         }
 
+        /* SCREEN AREA */
         .screen-lens {
             background: #555; 
             width: 290px; 
@@ -100,6 +107,7 @@
             font-family: var(--font-main); border: 1px solid #fff; text-transform: uppercase; z-index: 10;
         }
 
+        /* PREVIEW OVERLAY */
         #previewContainer {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: #222; z-index: 20; display: none; 
@@ -119,6 +127,7 @@
         }
         #previewControls button:active { transform: translate(1px, 1px); box-shadow: inset 1px 1px 3px rgba(0,0,0,0.6); }
 
+        /* CONTROLS */
         .controls { width: 100%; height: 250px; position: relative; } 
 
         .dpad-area { position: absolute; top: 10px; left: 45px; width: 100px; height: 100px; } 
@@ -148,6 +157,7 @@
         .btn-wrapper { display: flex; flex-direction: column; align-items: center; }
         .btn-oval { width: 50px; height: 12px; background: #666; border-radius: 10px; transform: rotate(-25deg); box-shadow: 1px 1px 3px rgba(0,0,0,0.4); cursor: pointer; transition: transform 0.05s, box-shadow 0.05s; }
         .btn-oval:active { transform: rotate(-25deg) translate(1px, 1px); box-shadow: inset 1px 1px 5px rgba(0,0,0,0.7); }
+        /* ★修正: ラベルの位置を右にずらしてバランス調整 */
         .meta-label { margin-top: 8px; margin-left: 5px; font-size: 8px; color: #444; font-weight: bold; letter-spacing: 1px; transform: rotate(-25deg); }
 
         .zoom-integrator { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); width: 240px; height: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
@@ -198,7 +208,7 @@
                         <video id="previewMediaVideo" controls autoplay loop></video>
                         <div id="previewControls">
                             <button id="btnCancel">CANCEL</button>
-                            <button id="btnSave">SAVE</button>
+                            <button id="btnSave">SAVE TO DEVICE</button>
                         </div>
                     </div>
                 </div>
@@ -264,7 +274,6 @@
         const video = document.getElementById('video');
         const led = document.getElementById('led');
         const toast = document.getElementById('toast');
-        
         const previewContainer = document.getElementById('previewContainer');
         const previewMediaImg = document.getElementById('previewMediaImg');
         const previewMediaVideo = document.getElementById('previewMediaVideo');
@@ -275,11 +284,6 @@
         let currentMediaBlob = null, currentMediaExt = null;
         let recMimeType = 'video/webm'; let recExt = 'webm';
 
-        // フレームレート制限用の変数 (動画ラグ対策)
-        let lastTime = 0;
-        const FPS = 20; // レトロな雰囲気を出しつつ負荷を下げる
-        const FRAME_DELAY = 1000 / FPS;
-
         async function initCamera() {
             if (stream) stream.getTracks().forEach(t => t.stop());
             try {
@@ -287,9 +291,7 @@
                 video.srcObject = stream;
                 video.onloadedmetadata = () => { video.play(); requestAnimationFrame(loop); };
                 if (MediaRecorder.isTypeSupported('video/mp4')) { recMimeType = 'video/mp4'; recExt = 'mp4'; }
-                
-                // ★重要: キャンバスの更新に合わせて録画ストリームを取得 (20fps)
-                const recStream = canvas.captureStream(FPS);
+                const recStream = canvas.captureStream(20);
                 mediaRecorder = new MediaRecorder(recStream, { mimeType: recMimeType, videoBitsPerSecond: 2500000 }); 
                 mediaRecorder.ondataavailable = e => { if(e.data.size>0) recordedChunks.push(e.data); };
                 mediaRecorder.onstop = showVideoPreview; 
@@ -338,114 +340,191 @@
             setTimeout(() => { config.locationName = "SHIBUYA, TOKYO"; showToast("LOCATION READY"); }, 1000);
         }
 
-        // 共通描画関数: Video/Canvas更新用
-        // isForCapture: trueなら常に1.0倍で描画（静止画ズレ対策）... ではなく、現在の見たまま(Zoom)を描画
-        // ★修正: 独立したCanvasへの描画をサポート
-        function renderToCanvas(targetCtx) {
+        // Core Render Logic
+        function renderToCanvas(targetCanvas, targetCtx, isForExport = false) {
             const vw = video.videoWidth, vh = video.videoHeight;
             if (vw === 0 || vh === 0) return;
 
             const minDim = Math.min(vw, vh);
-            const zoomFactor = 1.0 / config.zoomLevel; 
-            let cropDim = Math.min(minDim, minDim * zoomFactor); 
-            let sx = Math.max(0, (vw - cropDim) / 2);
-            let sy = Math.max(0, (vh - cropDim) / 2);
-            if (sx + cropDim > vw) cropDim = vw - sx; if (sy + cropDim > vh) cropDim = vh - sy;
+            const cropDim = minDim / config.zoomLevel; 
+            let sx = (vw - cropDim) / 2, sy = (vh - cropDim) / 2;
             
-            // 1. Offscreen draw (Video -> Pixel Processing)
             offCtx.drawImage(video, sx, sy, cropDim, cropDim, 0, 0, GB_RES, GB_RES);
-            
+
             const is16Color = palettes[config.paletteIdx].name === "16 COLOR";
             const imgData = offCtx.getImageData(0, 0, GB_RES, GB_RES);
             const d = imgData.data;
+            
             const cF = (259 * (config.contrast * 10 + 255)) / (255 * (259 - config.contrast * 10));
             const bV = config.brightness * 10;
-            const Q_MAX = 3, Q_FACTOR = 85; // 16 Color constants
 
             for(let i = 0; i < d.length; i += 4) {
                 if (is16Color) {
-                    let r = cF*(d[i]-128)+128+bV, g = cF*(d[i+1]-128)+128+bV, b = cF*(d[i+2]-128)+128+bV;
-                    d[i] = Math.min(255, Math.max(0, Math.round(r/255*Q_MAX)*Q_FACTOR));
-                    d[i+1] = Math.min(255, Math.max(0, Math.round(g/255*Q_MAX)*Q_FACTOR));
-                    d[i+2] = Math.min(255, Math.max(0, Math.round(b/255*Q_MAX)*Q_FACTOR));
+                    let r = cF * (d[i] - 128) + 128 + bV;
+                    let g = cF * (d[i+1] - 128) + 128 + bV;
+                    let b = cF * (d[i+2] - 128) + 128 + bV;
+                    d[i]   = Math.min(255, Math.max(0, Math.round(r / 85) * 85));
+                    d[i+1] = Math.min(255, Math.max(0, Math.round(g / 85) * 85));
+                    d[i+2] = Math.min(255, Math.max(0, Math.round(b / 85) * 85));
                 } else {
-                    const pal = palettes[config.paletteIdx].colors;
-                    const x = (i / 4) % GB_RES; const y = Math.floor((i / 4) / GB_RES);
-                    let gray = 0.299*d[i] + 0.587*d[i+1] + 0.114*d[i+2];
-                    gray = cF*(gray-128)+128+bV + (bayerMatrix[y%4][x%4]-8)*4;
+                    const x = (i / 4) % GB_RES, y = Math.floor((i / 4) / GB_RES);
+                    let gray = 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2];
+                    gray = cF * (gray - 128) + 128 + bV + (bayerMatrix[y % 4][x % 4] - 8) * 4;
                     let idx = gray < 64 ? 0 : gray < 128 ? 1 : gray < 192 ? 2 : 3;
-                    if(gray<0) idx=0; if(gray>255) idx=3;
-                    d[i]=pal[idx][0]; d[i+1]=pal[idx][1]; d[i+2]=pal[idx][2];
+                    if (gray < 0) idx = 0; if (gray > 255) idx = 3;
+                    const pal = palettes[config.paletteIdx].colors;
+                    d[i] = pal[idx][0]; d[i+1] = pal[idx][1]; d[i+2] = pal[idx][2];
                 }
             }
             offCtx.putImageData(imgData, 0, 0);
 
-            // 2. Main Canvas draw (Resize & Frame)
             targetCtx.imageSmoothingEnabled = false;
             targetCtx.drawImage(offCanvas, 0, 0, FINAL_RES, FINAL_RES);
-            
-            // 3. Draw Frame (Overlay) - 確実に描画する
             drawFrame(targetCtx);
-            
-            // UI Only: Scanlines
-            if (targetCtx === ctx) {
+
+            if (!isForExport) {
                 const scanlineEl = document.querySelector('.scanlines');
                 if(scanlineEl) scanlineEl.style.opacity = is16Color ? 0.1 : 0.4;
             }
         }
 
+        function drawFrame(ctx) {
+            const type = frames[config.frameIdx];
+            const is16 = palettes[config.paletteIdx].name === "16 COLOR";
+            const pal = is16 ? null : palettes[config.paletteIdx].colors;
+            const dk = is16 ? '#000' : `rgb(${pal[0].join(',')})`;
+            const lt = is16 ? '#FFF' : `rgb(${pal[3].join(',')})`;
+            
+            ctx.fillStyle = dk;
+            const bs = 80; 
+
+            if (type === "FILM") {
+                ctx.fillRect(0, 0, 1080, 60); ctx.fillRect(0, 1020, 1080, 60);
+                ctx.fillRect(0, 0, 60, 1080); ctx.fillRect(1020, 0, 60, 1080);
+                ctx.fillStyle = lt; ctx.font = "40px 'Press Start 2P'"; ctx.fillText("POCKET CAM", 80, 45);
+            } else if (type === "SCANLINE") {
+                ctx.fillStyle = "rgba(0,0,0,0.2)";
+                for(let y=0; y<1080; y+=8) ctx.fillRect(0, y, 1080, 4);
+            } else if (type === "DATETIME") {
+                const now = new Date();
+                const dStr = `${now.getFullYear()}/${(now.getMonth()+1).toString().padStart(2,'0')}/${now.getDate().toString().padStart(2,'0')}`;
+                const tStr = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
+                ctx.fillStyle = dk; ctx.fillRect(0, 0, 1080, 80);
+                ctx.fillStyle = lt; ctx.font = "40px 'Press Start 2P'"; 
+                ctx.fillText(dStr, 80, 40); ctx.fillText(tStr, 80, 75);
+            } else if (type === "WHITE BORDER") {
+                ctx.fillStyle = "white";
+                ctx.fillRect(0, 0, 1080, bs); ctx.fillRect(0, 1080-bs, 1080, bs);
+                ctx.fillRect(0, bs, bs, 1080-2*bs); ctx.fillRect(1080-bs, bs, bs, 1080-2*bs);
+            } else if (type === "LOCATION TAG") {
+                ctx.fillStyle = dk; ctx.fillRect(0, 0, 1080, 80);
+                ctx.fillStyle = lt; ctx.font = "40px 'Press Start 2P'"; 
+                ctx.fillText(config.locationName, 80, 55);
+            }
+        }
+
+        let lastTime = 0;
+        const FPS = 24;
         function loop(timestamp) {
             if (video.readyState === 4 && previewContainer.style.display !== 'flex') {
-                // フレームレート制限 (20FPS)
-                if (timestamp - lastTime >= FRAME_DELAY) {
+                if (timestamp - lastTime >= 1000/FPS) {
+                    renderToCanvas(canvas, ctx, false);
                     lastTime = timestamp;
-                    renderToCanvas(ctx); // メインキャンバスへ描画
                 }
             }
             requestAnimationFrame(loop);
         }
 
-        function drawFrame(targetCtx) {
-            const type = frames[config.frameIdx]; 
-            const is16Color = palettes[config.paletteIdx].name === "16 COLOR";
-            const dk = pal = is16Color ? '#000' : `rgb(${palettes[config.paletteIdx].colors[0].join(',')})`; 
-            const lt = is16Color ? '#FFF' : `rgb(${palettes[config.paletteIdx].colors[3].join(',')})`;
-            
-            targetCtx.fillStyle = dk; 
-            const bs = 80; 
-
-            if (type==="FILM") { targetCtx.fillRect(0,0,1080,60); targetCtx.fillRect(0,1020,1080,60); targetCtx.fillRect(0,0,60,1080); targetCtx.fillRect(1020,0,60,1080); targetCtx.fillStyle=lt; targetCtx.font="40px 'Press Start 2P'"; targetCtx.fillText("POCKET CAM",80,45); } 
-            else if (type==="SCANLINE") { targetCtx.fillStyle="rgba(0,0,0,0.2)"; for(let y=0;y<1080;y+=8) targetCtx.fillRect(0,y,1080,4); } 
-            else if (type==="DATETIME") { const now=new Date(); const dStr=`${now.getFullYear()}/${(now.getMonth()+1).toString().padStart(2,'0')}/${now.getDate().toString().padStart(2,'0')}`; const tStr=`${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`; targetCtx.fillStyle=dk; targetCtx.fillRect(0,0,1080,80); targetCtx.fillStyle=lt; targetCtx.font="40px 'Press Start 2P'"; targetCtx.fillText(dStr,80,40); targetCtx.fillText(tStr,80,75); }
-            else if (type==="WHITE BORDER") { targetCtx.fillStyle="white"; targetCtx.fillRect(0,0,1080,bs); targetCtx.fillRect(0,1080-bs,1080,bs); targetCtx.fillRect(0,bs,bs,1080-2*bs); targetCtx.fillRect(1080-bs,bs,bs,1080-2*bs); }
-            else if (type==="LOCATION TAG") { targetCtx.fillStyle=dk; targetCtx.fillRect(0,0,1080,80); targetCtx.fillStyle=lt; targetCtx.font="40px 'Press Start 2P'"; targetCtx.fillText(config.locationName,80,55); }
+        // Capture Photo
+        function capturePhoto() {
+            const captureCanvas = document.createElement('canvas');
+            captureCanvas.width = FINAL_RES;
+            captureCanvas.height = FINAL_RES;
+            const captureCtx = captureCanvas.getContext('2d');
+            renderToCanvas(captureCanvas, captureCtx, true);
+            showImagePreview(captureCanvas.toDataURL('image/png', 1.0));
         }
 
         function showToast(msg) { toast.innerText = msg; toast.style.display = 'block'; clearTimeout(toast.timer); toast.timer = setTimeout(() => toast.style.display = 'none', 1000); }
         function handleDpad(key) {
-            if (previewContainer.style.display === 'flex') return;
-            if (key==='up') config.brightness=Math.min(5,config.brightness+1); if (key==='down') config.brightness=Math.max(-5,config.brightness-1); if (key==='right') config.contrast=Math.min(5,config.contrast+1); if (key==='left') config.contrast=Math.max(-5,config.contrast-1); if (key==='up'||key==='down') showToast(`BRIGHT: ${config.brightness}`); if (key==='left'||key==='right') showToast(`CONTRAST: ${config.contrast}`); 
+            if(previewContainer.style.display === 'flex') return;
+            if(key==='up') config.brightness = Math.min(5, config.brightness+1);
+            if(key==='down') config.brightness = Math.max(-5, config.brightness-1);
+            if(key==='right') config.contrast = Math.min(5, config.contrast+1);
+            if(key==='left') config.contrast = Math.max(-5, config.contrast-1);
+            const label = (key==='up'||key==='down') ? 'BRIGHT' : 'CONTRAST';
+            const val = (key==='up'||key==='down') ? config.brightness : config.contrast;
+            showToast(`${label}: ${val}`);
         }
 
-        document.getElementById('btnB').addEventListener('click', (e) => { e.preventDefault(); if (previewContainer.style.display==='flex'){ hidePreview(); return; } config.paletteIdx=(config.paletteIdx+1)%palettes.length; showToast(palettes[config.paletteIdx].name); });
-        document.getElementById('btnSelect').addEventListener('click', (e) => { e.preventDefault(); if (previewContainer.style.display==='flex') return; config.frameIdx=(config.frameIdx+1)%frames.length; showToast(`FRAME: ${frames[config.frameIdx]}`); if(frames[config.frameIdx]==="LOCATION TAG") updateLocation(); });
-        document.getElementById('btnStart').addEventListener('click', (e) => { e.preventDefault(); if (previewContainer.style.display==='flex') return; config.camFacing=(config.camFacing==='user')?'environment':'user'; initCamera(); showToast("SWITCH CAM"); });
+        document.getElementById('btnB').addEventListener('click', (e) => {
+            e.preventDefault(); 
+            if(previewContainer.style.display === 'flex') { hidePreview(); return; }
+            config.paletteIdx = (config.paletteIdx + 1) % palettes.length;
+            showToast(palettes[config.paletteIdx].name);
+        });
 
+        document.getElementById('btnSelect').addEventListener('click', (e) => {
+            e.preventDefault(); 
+            if(previewContainer.style.display === 'flex') return;
+            config.frameIdx = (config.frameIdx + 1) % frames.length;
+            showToast(`FRAME: ${frames[config.frameIdx]}`);
+            if(frames[config.frameIdx] === "LOCATION TAG") updateLocation();
+        });
+
+        document.getElementById('btnStart').addEventListener('click', (e) => {
+            e.preventDefault(); 
+            if(previewContainer.style.display === 'flex') return;
+            config.camFacing = (config.camFacing === 'user') ? 'environment' : 'user';
+            initCamera(); showToast("SWITCH CAM");
+        });
+
+        // A Button Logic
         const btnA = document.getElementById('btnA');
-        function startPressA(e) { e.preventDefault(); if (isRecording || previewContainer.style.display==='flex') return; isLongPress=false; btnA.classList.add('pressing'); longPressTimer=setTimeout(()=>{ isLongPress=true; mediaRecorder.start(); isRecording=true; led.classList.add('on'); showToast("REC"); }, 400); }
-        function endPressA(e) { e.preventDefault(); clearTimeout(longPressTimer); btnA.classList.remove('pressing'); if (previewContainer.style.display==='flex') { saveMedia(); return; } if (isLongPress) { if(isRecording){ mediaRecorder.stop(); isRecording=false; led.classList.remove('on'); } } else { 
-            // ★修正: 静止画キャプチャ専用のCanvasを作成して保存
-            const captureCanvas = document.createElement('canvas');
-            captureCanvas.width = FINAL_RES; captureCanvas.height = FINAL_RES;
-            const captureCtx = captureCanvas.getContext('2d');
-            renderToCanvas(captureCanvas, captureCtx, true); // 独立した描画
-            const dataURL = captureCanvas.toDataURL('image/png', 1.0); 
-            showImagePreview(dataURL); canvas.style.opacity=0; setTimeout(()=>canvas.style.opacity=1, 100); } isLongPress=false; }
-        btnA.addEventListener('mousedown', startPressA); btnA.addEventListener('touchstart', startPressA); btnA.addEventListener('mouseup', endPressA); btnA.addEventListener('touchend', endPressA);
+        function startPressA(e) {
+            e.preventDefault();
+            if(isRecording || previewContainer.style.display === 'flex') return;
+            isLongPress = false; btnA.classList.add('pressing');
+            longPressTimer = setTimeout(() => {
+                isLongPress = true; mediaRecorder.start(); isRecording = true; led.classList.add('on'); showToast("REC");
+            }, 400);
+        }
+        function endPressA(e) {
+            e.preventDefault(); clearTimeout(longPressTimer); btnA.classList.remove('pressing');
+            if(previewContainer.style.display === 'flex') { saveMedia(); return; }
+            
+            if(isLongPress) {
+                if(isRecording) { mediaRecorder.stop(); isRecording = false; led.classList.remove('on'); }
+            } else {
+                capturePhoto(); 
+                canvas.style.opacity = 0; setTimeout(()=>canvas.style.opacity=1, 100);
+            }
+            isLongPress = false;
+        }
+        btnA.addEventListener('mousedown', startPressA); btnA.addEventListener('touchstart', startPressA);
+        btnA.addEventListener('mouseup', endPressA); btnA.addEventListener('touchend', endPressA);
 
         ['Up','Down','Left','Right'].forEach(d => document.getElementById('d'+d).addEventListener('click', (e)=>{ e.preventDefault(); handleDpad(d.toLowerCase()); }));
         
-        updateLocation(); initCamera(); applyZoom(config.zoomLevel); showToast("READY (1080P)");
+        zoomSlider.addEventListener('input', (e) => { config.zoomLevel = parseFloat(e.target.value); showToast(`ZOOM: x${config.zoomLevel.toFixed(1)}`); });
+        btnResetZoom.addEventListener('click', (e) => { e.preventDefault(); zoomSlider.value = 1.0; config.zoomLevel = 1.0; });
+        btnReload.addEventListener('click', (e) => { e.preventDefault(); location.reload(); });
+        btnSave.addEventListener('click', saveMedia); btnCancel.addEventListener('click', hidePreview);
+
+        function updateLocation() {
+            config.locationName = "GETTING LOCATION...";
+            setTimeout(() => { config.locationName = "SHIBUYA, TOKYO"; showToast("LOCATION READY"); }, 1000);
+        }
+
+        function autoFitScreen() {
+            const scale = Math.min(window.innerWidth / 340, window.innerHeight / 600);
+            container.style.transform = `scale(${scale})`;
+        }
+        window.addEventListener('resize', autoFitScreen);
+        
+        autoFitScreen();
+        initCamera(); 
+        showToast("READY (1080P)");
     </script>
 </body>
 </html>

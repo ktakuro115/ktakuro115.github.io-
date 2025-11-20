@@ -1,8 +1,9 @@
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=no">
-    <title>GB Camera V24 (All 8-bit Fix)</title>
+    <title>GB Camera V25 (Clean Boot)</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -17,7 +18,7 @@
             --font-main: 'Press Start 2P', monospace;
         }
 
-        /* ★修正: 全要素に強制的に8bitフォントを適用 */
+        /* 全要素に強制的に8bitフォントを適用 */
         * {
             font-family: var(--font-main) !important;
             box-sizing: border-box;
@@ -65,16 +66,6 @@
             border-bottom: 4px solid #999;
         }
 
-        /* ★修正: ロゴ位置を上に調整 (top: 12px -> 6px) */
-        .logo-text {
-            position: absolute; top: 6px; left: 25px;
-            color: #303080; 
-            font-size: 12px; 
-            letter-spacing: -1px;
-            text-shadow: 1px 1px 0 rgba(255,255,255,0.3);
-            font-style: italic; /* 斜体を追加してロゴっぽく */
-        }
-
         /* SCREEN AREA */
         .screen-lens {
             background: #555; 
@@ -107,29 +98,19 @@
             color: #0f380f;
             transition: opacity 0.5s ease-out;
         }
-        .nintendo-logo {
-            font-size: 16px;
-            margin-bottom: 40px;
-            opacity: 0;
-            animation: dropDown 2s forwards;
-        }
+        
         .gb-title {
             font-size: 20px;
             text-align: center;
-            line-height: 1.5;
+            white-space: nowrap; /* 横一列を強制 */
             opacity: 0;
-            animation: fadeInTitle 0.5s forwards 2.2s;
+            /* アニメーション開始を早める */
+            animation: fadeInTitle 0.5s forwards 0.5s; 
         }
 
-        @keyframes dropDown {
-            0% { transform: translateY(-100px); opacity: 1; }
-            60% { transform: translateY(0); opacity: 1; }
-            80% { transform: translateY(-10px); opacity: 1; }
-            100% { transform: translateY(0); opacity: 1; }
-        }
         @keyframes fadeInTitle {
-            from { opacity: 0; }
-            to { opacity: 1; }
+            from { opacity: 0; transform: translateY(10px); } 
+            to { opacity: 1; transform: translateY(0); }
         }
 
         canvas {
@@ -248,7 +229,7 @@
             line-height: 1; display: block;
         }
         #btnReload::after { 
-            content: "L"; /* 8bitフォントで矢印が出ない場合のため L (Load) に変更 */
+            content: "L";
             font-size: 6px; color: #333;
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); 
             line-height: 1; display: block;
@@ -267,13 +248,11 @@
 <body>
     <div id="gbContainer">
         <div class="gb-body">
-            <div class="logo-text">NINTENDO GAME BOY™</div>
             <div class="screen-lens">
                 <div class="battery-led" id="led"></div>
                 <div class="screen-cover">
                     <div id="bootScreen">
-                        <div class="nintendo-logo">Nintendo®</div>
-                        <div class="gb-title">GB<br>CAMERA</div>
+                        <div class="gb-title">GB CAMERA</div>
                     </div>
 
                     <canvas id="gbCanvas" width="1080" height="1080"></canvas>
@@ -330,12 +309,12 @@
         }
         window.addEventListener('load', () => {
             autoFitScreen();
-            // Boot Animation
+            // Boot Animation: 待ち時間を2秒に短縮
             setTimeout(() => {
                 const bs = document.getElementById('bootScreen');
                 bs.style.opacity = 0;
                 setTimeout(() => bs.style.display = 'none', 500);
-            }, 3500);
+            }, 2000);
         });
         window.addEventListener('resize', autoFitScreen);
 

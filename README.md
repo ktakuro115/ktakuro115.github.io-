@@ -346,7 +346,7 @@
                 <div class="zoom-integrator">
                     <div class="zoom-label">ZOOM LEVEL</div> 
                     <div class="slider-container">
-                        <input type="range" id="zoomSlider" min="0.5" max="2.0" step="0.01" value="1.0"> 
+                        <input type="range" id="zoomSlider" min="1.0" max="2.0" step="0.01" value="1.0"> 
                         <button id="btnResetZoom" title="Reset Zoom"></button> 
                         <button id="btnReload" title="Reload Page"></button> 
                     </div>
@@ -430,7 +430,7 @@
         
         zoomSlider.addEventListener('input', (e) => applyZoom(e.target.value));
         btnResetZoom.addEventListener('click', () => applyZoom(1.0));
-        // ★修正箇所: イベント伝播の停止を追加し、リロードを確実にする
+        
         btnReload.addEventListener('click', (e) => { 
             e.preventDefault(); 
             e.stopPropagation(); 

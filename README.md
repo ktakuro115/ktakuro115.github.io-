@@ -2,7 +2,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=no">
-    <title>GB Camera V17 (Perf Fix)</title>
+    <title>GB Camera V18 (Rec Fix)</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -94,8 +94,15 @@
             image-rendering: pixelated; 
         }
 
-        /* 録画用キャンバスは非表示 */
-        #recCanvas { display: none; }
+        /* ★修正: display:noneだと描画更新が止まるため、透明にして背面に隠す */
+        #recCanvas { 
+            position: absolute;
+            top: 0;
+            left: 0;
+            opacity: 0;
+            pointer-events: none;
+            z-index: -1;
+        }
 
         .scanlines {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
@@ -279,7 +286,7 @@
         const gbCanvas = document.getElementById('gbCanvas');
         const gbCtx = gbCanvas.getContext('2d', { willReadFrequently: true });
         
-        // Recording Canvas (Hidden)
+        // Recording Canvas (Hidden but rendered)
         const recCanvas = document.getElementById('recCanvas');
         const recCtx = recCanvas.getContext('2d', { willReadFrequently: true });
 
@@ -323,7 +330,6 @@
         async function initCamera() {
             if (stream) stream.getTracks().forEach(t => t.stop());
             try {
-                // カメラ自体は高解像度で取得（ズーム時の画質維持のため）
                 stream = await navigator.mediaDevices.getUserMedia({ 
                     video: { width: {ideal: 1080}, height: {ideal: 1080}, facingMode: config.camFacing }, 
                     audio: false 
@@ -336,10 +342,9 @@
                     console.warn("MediaRecorder not supported properly");
                     showToast("REC NOT SUPPORTED");
                 } else {
-                    // ★録画用キャンバスからストリームを取得
+                    // ★修正: ストリームの初期化
                     const recStream = recCanvas.captureStream(FPS);
                     
-                    // 540p なのでビットレートは 1.0Mbps で十分綺麗
                     mediaRecorder = new MediaRecorder(recStream, { 
                         mimeType: recMimeType, 
                         videoBitsPerSecond: 1000000 
@@ -378,6 +383,7 @@
             
             previewMediaVideo.src = url; previewMediaVideo.style.display = 'block';
             previewMediaImg.style.display = 'none'; previewContainer.style.display = 'flex';
+            previewMediaVideo.play(); // 自動再生
             
             const ext = recMimeType.includes('mp4') ? 'mp4' : 'webm';
             currentMediaBlob = blob; currentMediaExt = ext; 
@@ -422,7 +428,6 @@
             const cropDim = minDim / config.zoomLevel; 
             let sx = (vw - cropDim) / 2, sy = (vh - cropDim) / 2;
             
-            // 1. 小さいキャンバスに描画 (135px)
             offCtx.drawImage(video, sx, sy, cropDim, cropDim, 0, 0, GB_RES, GB_RES);
 
             const is16Color = palettes[config.paletteIdx].name === "16 COLOR";
@@ -432,7 +437,6 @@
             const cF = (259 * (config.contrast * 10 + 255)) / (255 * (259 - config.contrast * 10));
             const bV = config.brightness * 10;
 
-            // 2. ピクセル処理
             for(let i = 0; i < d.length; i += 4) {
                 if (is16Color) {
                     let r = cF * (d[i] - 128) + 128 + bV;
@@ -457,9 +461,7 @@
 
         function renderFrame(targetCtx, targetSize) {
             targetCtx.imageSmoothingEnabled = false;
-            // 拡大描画
             targetCtx.drawImage(offCanvas, 0, 0, targetSize, targetSize);
-            // フレーム描画
             drawOverlay(targetCtx, targetSize);
         }
 
@@ -471,8 +473,6 @@
             const lt = is16 ? '#FFF' : `rgb(${pal[3].join(',')})`;
             
             ctx.fillStyle = dk;
-            
-            // サイズに応じたスケーリング係数 (1080基準)
             const s = size / 1080;
             const bs = 80 * s; 
             const fontSize = 40 * s;
@@ -512,10 +512,8 @@
             if (video.readyState === 4 && previewContainer.style.display !== 'flex') {
                 if (timestamp - lastTime >= 1000/FPS) {
                     if(processPixels()) {
-                        // 1. 表示用 (1080p)
                         renderFrame(gbCtx, DISP_RES);
-                        
-                        // 2. 録画中なら録画用キャンバスも更新 (540p)
+                        // 録画中は見えないキャンバスも更新
                         if (isRecording) {
                             renderFrame(recCtx, REC_RES);
                         }
@@ -528,14 +526,11 @@
 
         function capturePhoto() {
             const captureCanvas = document.createElement('canvas');
-            captureCanvas.width = DISP_RES; // 写真は高画質のまま
+            captureCanvas.width = DISP_RES;
             captureCanvas.height = DISP_RES;
             const captureCtx = captureCanvas.getContext('2d');
-            
-            // Processed state is already in offCanvas from loop, but let's ensure fresh
             processPixels();
             renderFrame(captureCtx, DISP_RES);
-            
             showImagePreview(captureCanvas.toDataURL('image/png', 1.0));
         }
 
@@ -574,7 +569,6 @@
             initCamera(); showToast("SWITCH CAM");
         });
 
-        // A Button Logic
         const btnA = document.getElementById('btnA');
         function startPressA(e) {
             e.preventDefault();
@@ -587,10 +581,8 @@
                 if (mediaRecorder && mediaRecorder.state === 'inactive') {
                     isLongPress = true;
                     recordedChunks = []; 
-                    
-                    // 録画開始前に一度強制レンダリングしてキャンバスを初期化
+                    // 録画開始時に一度強制描画
                     renderFrame(recCtx, REC_RES);
-                    
                     mediaRecorder.start(1000); 
                     isRecording = true; 
                     led.classList.add('on'); 
@@ -638,7 +630,7 @@
 
         autoFitScreen();
         initCamera(); 
-        showToast("READY (V17 PERF)");
+        showToast("READY (V18 REC FIX)");
     </script>
 </body>
 </html>

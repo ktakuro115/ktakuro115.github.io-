@@ -2,7 +2,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=no">
-    <title>GB Camera V25 (Clean Boot)</title>
+    <title>GB Camera V27 (Round Icon)</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -17,7 +17,6 @@
             --font-main: 'Press Start 2P', monospace;
         }
 
-        /* 全要素に強制的に8bitフォントを適用 */
         * {
             font-family: var(--font-main) !important;
             box-sizing: border-box;
@@ -101,9 +100,8 @@
         .gb-title {
             font-size: 20px;
             text-align: center;
-            white-space: nowrap; /* 横一列を強制 */
+            white-space: nowrap; 
             opacity: 0;
-            /* アニメーション開始を早める */
             animation: fadeInTitle 0.5s forwards 0.5s; 
         }
 
@@ -227,11 +225,27 @@
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); 
             line-height: 1; display: block;
         }
+
+        /* ★変更点: 丸い回転矢印を作成 */
         #btnReload::after { 
-            content: "L";
-            font-size: 6px; color: #333;
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); 
-            line-height: 1; display: block;
+            content: ""; 
+            position: absolute; 
+            top: 50%; left: 50%; 
+            width: 10px; height: 10px; 
+            border: 2px solid #333; 
+            border-radius: 50%; /* 丸く */
+            border-top: 2px solid transparent; /* 上部を開ける */
+            transform: translate(-50%, -50%) rotate(45deg); /* 角度調整 */
+        }
+        #btnReload::before {
+            content: "";
+            position: absolute;
+            top: 2px; right: 2px; /* 位置調整 */
+            width: 0; height: 0;
+            border-style: solid;
+            border-width: 0 4px 4px 4px; /* 三角形 */
+            border-color: transparent transparent #333 transparent;
+            transform: rotate(55deg); /* 三角形の向き調整 */
         }
 
         input[type=range] { -webkit-appearance: none; width: 140px; background: transparent; }
@@ -308,7 +322,7 @@
         }
         window.addEventListener('load', () => {
             autoFitScreen();
-            // Boot Animation: 待ち時間を2秒に短縮
+            // Boot Animation
             setTimeout(() => {
                 const bs = document.getElementById('bootScreen');
                 bs.style.opacity = 0;

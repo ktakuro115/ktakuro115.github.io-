@@ -2,7 +2,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=no">
-    <title>GB Camera V21 (Buffer Fix)</title>
+    <title>GB Camera V22 (Boot & Fonts)</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -12,7 +12,8 @@
         /* ----- BASIC SETUP ----- */
         :root {
             --gb-body: #c0c0c0;
-            --gb-screen-bg: #0f380f;
+            --gb-screen-bg: #8bac0f; /* Classic Green color for boot */
+            --gb-screen-dark: #0f380f;
             --font-main: 'Press Start 2P', monospace;
         }
 
@@ -59,10 +60,16 @@
             border-bottom: 4px solid #999;
         }
 
+        /* ★変更点: ロゴを8bitフォントに */
         .logo-text {
-            position: absolute; top: 10px; left: 25px;
-            color: #666; font-size: 10px; font-weight: bold;
-            font-style: italic; letter-spacing: 1px;
+            position: absolute; top: 12px; left: 25px;
+            color: #303080; /* Nintendo Blue-ish */
+            font-size: 12px; 
+            font-weight: normal; /* Pixel fonts usually don't need bold */
+            font-style: normal;
+            letter-spacing: -1px;
+            font-family: var(--font-main);
+            text-shadow: 1px 1px 0 rgba(255,255,255,0.3);
         }
 
         /* SCREEN AREA */
@@ -87,27 +94,54 @@
             isolation: isolate;
         }
 
+        /* ★追加: 起動画面 */
+        #bootScreen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: #8bac0f; /* Lightest Green */
+            z-index: 300;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            color: #0f380f; /* Darkest Green */
+            font-family: var(--font-main);
+            transition: opacity 0.5s ease-out;
+        }
+        .nintendo-logo {
+            font-size: 16px;
+            margin-bottom: 40px;
+            opacity: 0;
+            animation: dropDown 2s forwards;
+        }
+        .gb-title {
+            font-size: 20px;
+            text-align: center;
+            line-height: 1.5;
+            opacity: 0;
+            animation: fadeInTitle 0.5s forwards 2.2s;
+        }
+
+        @keyframes dropDown {
+            0% { transform: translateY(-100px); opacity: 1; }
+            60% { transform: translateY(0); opacity: 1; }
+            80% { transform: translateY(-10px); opacity: 1; }
+            100% { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes fadeInTitle {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
         canvas {
             display: block; 
             width: 100%; 
             height: 100%;
-            background-color: var(--gb-screen-bg); 
+            background-color: #0f380f; 
             image-rendering: pixelated; 
             position: absolute;
             top: 0; left: 0;
         }
 
-        /* 表示用 */
-        #gbCanvas {
-            z-index: 10;
-        }
-
-        /* 録画用: 完全な透明(0)だと描画省略されることがあるため、ごくわずかに不透明にする */
-        #recCanvas { 
-            z-index: 50; 
-            opacity: 0.01; 
-            pointer-events: none; 
-        }
+        #gbCanvas { z-index: 10; }
+        #recCanvas { z-index: 50; opacity: 0.01; pointer-events: none; }
 
         .scanlines {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
@@ -164,7 +198,15 @@
 
         .ab-area { position: absolute; top: 10px; right: 25px; width: 130px; height: 60px; transform: rotate(-25deg); display: flex; gap: 15px; align-items: flex-end; }
         .btn-wrapper-ab { display: flex; flex-direction: column; align-items: center; }
-        .btn-round { width: 45px; height: 45px; background: #cc3333; border-radius: 50%; box-shadow: 0px 4px 6px rgba(0,0,0,0.6), inset 0px 1px 1px rgba(255,255,255,0.4); display: flex; justify-content: center; align-items: center; font-size: 10px; color: rgba(0,0,0,0.2); cursor: pointer; transition: transform 0.05s, box-shadow 0.05s; }
+        
+        /* ★変更点: ボタン文字を8bitフォントに */
+        .btn-round { 
+            width: 45px; height: 45px; background: #cc3333; border-radius: 50%; 
+            box-shadow: 0px 4px 6px rgba(0,0,0,0.6), inset 0px 1px 1px rgba(255,255,255,0.4); 
+            display: flex; justify-content: center; align-items: center; 
+            font-family: var(--font-main); font-size: 10px; color: rgba(0,0,0,0.3); 
+            cursor: pointer; transition: transform 0.05s, box-shadow 0.05s; 
+        }
         .btn-round:active { transform: translate(1px, 1px); box-shadow: inset 0 0 8px rgba(0,0,0,0.8), 0 0 2px rgba(0,0,0,0.2); }
         .btn-round.pressing { background: #ff5555; box-shadow: 0 0 10px #ff0000; }
 
@@ -172,7 +214,13 @@
         .btn-wrapper { display: flex; flex-direction: column; align-items: center; }
         .btn-oval { width: 50px; height: 12px; background: #666; border-radius: 10px; transform: rotate(-25deg); box-shadow: 1px 1px 3px rgba(0,0,0,0.4); cursor: pointer; transition: transform 0.05s, box-shadow 0.05s; }
         .btn-oval:active { transform: rotate(-25deg) translate(1px, 1px); box-shadow: inset 1px 1px 5px rgba(0,0,0,0.7); }
-        .meta-label { margin-top: 8px; margin-left: 5px; font-size: 8px; color: #444; font-weight: bold; letter-spacing: 1px; transform: rotate(-25deg); }
+        
+        /* ★変更点: ラベル文字を8bitフォントに */
+        .meta-label { 
+            margin-top: 8px; margin-left: 5px; 
+            font-family: var(--font-main); font-size: 6px; 
+            color: #444; letter-spacing: 0px; transform: rotate(-25deg); 
+        }
 
         .zoom-integrator { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); width: 240px; height: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
         .zoom-label { font-size: 8px; color: #666; letter-spacing: 2px; margin-bottom: 5px; text-shadow: 1px 1px 0 rgba(255,255,255,0.5); font-weight: bold; }
@@ -187,7 +235,7 @@
         #btnResetZoom:active, #btnReload:active { transform: scale(0.9); box-shadow: inset 0 0 8px rgba(0,0,0,0.6); }
         
         #btnResetZoom::after { 
-            content: "R"; font-size: 8px; color: #333; font-weight: bold; 
+            content: "R"; font-family: var(--font-main); font-size: 6px; color: #333;
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); 
             line-height: 1; display: block;
         }
@@ -214,6 +262,11 @@
             <div class="screen-lens">
                 <div class="battery-led" id="led"></div>
                 <div class="screen-cover">
+                    <div id="bootScreen">
+                        <div class="nintendo-logo">Nintendo®</div>
+                        <div class="gb-title">GB<br>CAMERA</div>
+                    </div>
+
                     <canvas id="gbCanvas" width="1080" height="1080"></canvas>
                     <canvas id="recCanvas" width="540" height="540"></canvas>
                     <div class="scanlines"></div>
@@ -266,11 +319,20 @@
             const s = window.innerHeight / baseH; 
             container.style.transform = `scale(${s})`;
         }
-        window.addEventListener('load', autoFitScreen); window.addEventListener('resize', autoFitScreen);
+        window.addEventListener('load', () => {
+            autoFitScreen();
+            // Boot Animation: Remove screen after delay
+            setTimeout(() => {
+                const bs = document.getElementById('bootScreen');
+                bs.style.opacity = 0;
+                setTimeout(() => bs.style.display = 'none', 500);
+            }, 3500);
+        });
+        window.addEventListener('resize', autoFitScreen);
 
         const GB_RES = 135; 
         const DISP_RES = 1080; 
-        const REC_RES = 540;   
+        const REC_RES = 540;    
         
         const FPS = 24;
         const config = { paletteIdx: 0, frameIdx: 0, brightness: 0, contrast: 2, camFacing: 'environment', zoomLevel: 1.0, locationName: "SHIBUYA, TOKYO" };
@@ -291,7 +353,6 @@
         const recCanvas = document.getElementById('recCanvas');
         const recCtx = recCanvas.getContext('2d', { willReadFrequently: true });
 
-        // ★バッファ用キャンバス (フレーム合成用)
         const bufferCanvas = document.createElement('canvas');
         bufferCanvas.width = REC_RES; 
         bufferCanvas.height = REC_RES;
@@ -319,6 +380,7 @@
         let currentMediaBlob = null;
         let currentMediaExt = null;
         let recMimeType = '';
+        let savedFrameIdx = 0; // Store frame index when recording starts
 
         function getSupportedMimeType() {
             const types = [
@@ -449,7 +511,7 @@
                     if (gray < 0) idx = 0; if (gray > 255) idx = 3;
                     const pal = palettes[config.paletteIdx].colors;
                     if(pal && pal[idx]) {
-                         d[i] = pal[idx][0]; d[i+1] = pal[idx][1]; d[i+2] = pal[idx][2];
+                          d[i] = pal[idx][0]; d[i+1] = pal[idx][1]; d[i+2] = pal[idx][2];
                     }
                 }
             }
@@ -467,22 +529,18 @@
             }
         }
 
-        // ★修正: バッファ経由で録画用フレームを生成する関数
         function renderToRecCanvas() {
             bufferCtx.imageSmoothingEnabled = false;
-            // 1. バッファに映像を描く
             bufferCtx.drawImage(offCanvas, 0, 0, REC_RES, REC_RES);
-            // 2. バッファにフレームを重ねる
             try {
                 drawOverlay(bufferCtx, REC_RES);
             } catch(e) { console.warn(e); }
-            // 3. 完成した画像を録画用キャンバスに転写 (1回だけ描画)
             recCtx.drawImage(bufferCanvas, 0, 0);
         }
 
         function drawOverlay(ctx, size) {
             const type = frames[config.frameIdx];
-            if (type === "OFF") return; // OFFなら何もしない
+            if (type === "OFF") return; 
 
             const is16 = palettes[config.paletteIdx].name === "16 COLOR";
             const pal = !is16 ? palettes[config.paletteIdx].colors : null;
@@ -528,10 +586,8 @@
             if (video.readyState === 4 && previewContainer.style.display !== 'flex') {
                 if (timestamp - lastTime >= 1000/FPS) {
                     if(processPixels()) {
-                        // 表示用 (直接描画)
                         renderFrame(gbCtx, DISP_RES);
                         
-                        // 録画用 (バッファ経由)
                         if (isRecording) {
                             renderToRecCanvas();
                         }
@@ -574,6 +630,9 @@
         document.getElementById('btnSelect').addEventListener('click', (e) => {
             e.preventDefault(); 
             if(previewContainer.style.display === 'flex') return;
+            // 録画中は変更不可
+            if(isRecording) { showToast("LOCKED IN REC"); return; }
+
             config.frameIdx = (config.frameIdx + 1) % frames.length;
             showToast(`FRAME: ${frames[config.frameIdx]}`);
             if(frames[config.frameIdx] === "LOCATION TAG") updateLocation();
@@ -595,12 +654,16 @@
                 if (mediaRecorder && mediaRecorder.state === 'inactive') {
                     isLongPress = true;
                     recordedChunks = []; 
-                    // 録画開始時に一度強制描画
+                    
+                    // ★変更点: 録画開始時にフレームを保存してOFFにする
+                    savedFrameIdx = config.frameIdx;
+                    config.frameIdx = 0; // 0 = OFF
+
                     renderToRecCanvas();
                     mediaRecorder.start(1000); 
                     isRecording = true; 
                     led.classList.add('on'); 
-                    showToast("REC STARTED");
+                    showToast("REC (FRAME OFF)");
                 }
             }, 400); 
         }
@@ -614,6 +677,9 @@
                     mediaRecorder.stop(); 
                     isRecording = false; 
                     led.classList.remove('on'); 
+
+                    // ★変更点: 録画終了時にフレームを復元する
+                    config.frameIdx = savedFrameIdx;
                 }
             } else {
                 if (!isRecording) {
@@ -638,7 +704,6 @@
             setTimeout(() => { config.locationName = "SHIBUYA, TOKYO"; showToast("LOCATION READY"); }, 1000);
         }
 
-        autoFitScreen();
         initCamera(); 
     </script>
 </body>

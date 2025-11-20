@@ -100,6 +100,7 @@
             background-color: var(--gb-screen-bg); 
             image-rendering: pixelated; 
             box-sizing: border-box;
+            transition: opacity 0.1s; /* フラッシュ効果用 */
         }
 
         .scanlines {
@@ -114,6 +115,64 @@
             font-size: 10px; display: none; pointer-events: none; white-space: nowrap; border-radius: 4px;
             font-family: var(--font-main); border: 1px solid #fff; text-transform: uppercase; z-index: 10;
         }
+
+        /* ----- PREVIEW OVERLAY STYLES ----- */
+        #previewContainer {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 220px;
+            height: 220px;
+            background: #000;
+            z-index: 20;
+            display: none; /* 初期状態では非表示 */
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-family: sans-serif;
+            color: white;
+            padding: 0;
+            box-sizing: border-box;
+            background-color: #222; /* 背景色 */
+        }
+
+        #previewMediaImg, #previewMediaVideo {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            display: none;
+            image-rendering: pixelated; /* 粗いドット感を維持 */
+            background-color: #000; /* 背景が黒くなるように */
+        }
+
+        #previewControls {
+            position: absolute;
+            bottom: 5px;
+            width: 100%;
+            display: flex;
+            justify-content: space-around;
+            padding: 5px 0;
+            background: rgba(0, 0, 0, 0.5);
+            font-family: var(--font-main);
+        }
+
+        #previewControls button {
+            background: #cc3333;
+            color: #fff;
+            border: 2px solid #fff;
+            padding: 5px 10px;
+            font-family: var(--font-main);
+            font-size: 8px;
+            cursor: pointer;
+            box-shadow: 2px 2px 4px rgba(0,0,0,0.4);
+            text-transform: uppercase;
+        }
+
+        #previewControls button:active {
+            transform: translate(1px, 1px);
+            box-shadow: inset 1px 1px 3px rgba(0,0,0,0.6);
+        }
+        /* ---------------------------------- */
 
         /* CONTROLS */
         .controls { width: 100%; height: 250px; position: relative; } 
@@ -217,6 +276,16 @@
                     <canvas id="gbCanvas" width="1080" height="1080"></canvas>
                     <div class="scanlines"></div>
                     <div id="toast">BOOTING...</div>
+
+                    <div id="previewContainer">
+                        <img id="previewMediaImg" style="display:none; max-width: 100%; max-height: 100%; object-fit: contain; image-rendering: pixelated;">
+                        <video id="previewMediaVideo" controls autoplay loop style="display:none; max-width: 100%; max-height: 100%; object-fit: contain; image-rendering: pixelated;"></video>
+                        
+                        <div id="previewControls">
+                            <button id="btnCancel">CANCEL</button>
+                            <button id="btnSave">SAVE TO DEVICE</button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -273,9 +342,9 @@
             { name: "GREY SCALE", colors: [[20,20,20], [80,80,80], [160,160,160], [240,240,240]], border: "#555" },
             { name: "VIRTUAL RED", colors: [[40,0,0], [100,0,0], [180,0,0], [255,50,50]], border: "#800" },
             { name: "CYBER BLUE", colors: [[0,20,40], [0,70,110], [0,140,190], [180,230,255]], border: "#004070" },
-            { name: "16 COLOR", colors: [], border: "#000" } // 16色に戻す
+            { name: "16 COLOR", colors: [], border: "#000" } 
         ];
-        const frames = ["OFF", "FILM", "SCANLINE", "VIGNETTE", "DOT MATRIX", "LCD BORDER", "DATETIME"]; 
+        const frames = ["OFF", "FILM", "SCANLINE", "DATETIME", "WHITE BORDER"]; // フレームリスト
         const bayerMatrix = [[0, 8, 2, 10],[12, 4, 14, 6],[3, 11, 1, 9],[15, 7, 13, 5]];
 
         const canvas = document.getElementById('gbCanvas');
@@ -288,6 +357,17 @@
         const video = document.getElementById('video');
         const led = document.getElementById('led');
         const toast = document.getElementById('toast');
+
+        // --- PREVIEW ELEMENTS ---
+        const previewContainer = document.getElementById('previewContainer');
+        const previewMediaImg = document.getElementById('previewMediaImg');
+        const previewMediaVideo = document.getElementById('previewMediaVideo');
+        const btnSave = document.getElementById('btnSave');
+        const btnCancel = document.getElementById('btnCancel');
+        let currentMediaBlob = null;
+        let currentMediaExt = null;
+        // ------------------------
+        
         let isRecording = false, mediaRecorder, recordedChunks = [], stream = null, longPressTimer, isLongPress = false;
 
         // MP4 Setup
@@ -305,7 +385,7 @@
                 const recStream = canvas.captureStream(30);
                 mediaRecorder = new MediaRecorder(recStream, { mimeType: recMimeType, videoBitsPerSecond: 5000000 }); 
                 mediaRecorder.ondataavailable = e => { if(e.data.size>0) recordedChunks.push(e.data); };
-                mediaRecorder.onstop = saveVideo;
+                mediaRecorder.onstop = showVideoPreview; 
             } catch(e) { console.error(e); showToast("CAMERA ERROR"); }
         }
 
@@ -319,68 +399,125 @@
         zoomSlider.addEventListener('input', (e) => applyZoom(e.target.value));
         btnResetZoom.addEventListener('click', () => applyZoom(1.0));
 
+        // --- PREVIEW AND SAVE LOGIC ---
+
+        function showImagePreview(dataURL) {
+            previewMediaImg.src = dataURL;
+            previewMediaImg.style.display = 'block';
+            previewMediaVideo.style.display = 'none';
+            previewContainer.style.display = 'flex';
+            currentMediaExt = 'png';
+            currentMediaBlob = dataURL; 
+            showToast("PREVIEW PHOTO");
+        }
+
+        function showVideoPreview() { 
+            const blob = new Blob(recordedChunks, {type: recMimeType});
+            const url = URL.createObjectURL(blob);
+            
+            previewMediaVideo.src = url;
+            previewMediaVideo.style.display = 'block';
+            previewMediaImg.style.display = 'none';
+            previewContainer.style.display = 'flex';
+            
+            currentMediaBlob = blob; 
+            currentMediaExt = recExt;
+            recordedChunks = []; 
+            showToast("PREVIEW VIDEO");
+        }
+
+        function saveMedia() {
+            if (!currentMediaBlob) return;
+
+            const a = document.createElement('a');
+            const now = Date.now();
+            let url = '';
+            let filename = '';
+
+            if (currentMediaExt === 'png') {
+                url = currentMediaBlob;
+                filename = `gb-photo-${now}.${currentMediaExt}`;
+            } else {
+                url = URL.createObjectURL(currentMediaBlob);
+                filename = `gb-video-${now}.${currentMediaExt}`;
+            }
+
+            a.href = url;
+            a.download = filename;
+            a.click();
+            
+            if (currentMediaExt !== 'png') URL.revokeObjectURL(url);
+            
+            hidePreview();
+            showToast("SAVED");
+        }
+        
+        function hidePreview() {
+            previewContainer.style.display = 'none';
+            previewMediaImg.src = '';
+            previewMediaVideo.src = '';
+            currentMediaBlob = null;
+            currentMediaExt = null;
+            if (previewMediaVideo.src) URL.revokeObjectURL(previewMediaVideo.src);
+        }
+
+        btnSave.addEventListener('click', saveMedia);
+        btnCancel.addEventListener('click', hidePreview);
+
+        // --- RENDERING LOOP ---
 
         function loop() {
             if (video.readyState === 4) {
                 const vw = video.videoWidth, vh = video.videoHeight;
                 const minDim = Math.min(vw, vh);
                 
-                // ズームレベルに基づいて描画するソース領域を計算
+                if (previewContainer.style.display === 'flex') {
+                    requestAnimationFrame(loop);
+                    return;
+                }
+                
                 const zoomFactor = 1.0 / config.zoomLevel; 
                 let cropDim = minDim * zoomFactor; 
                 
-                // 【ズームバグ修正箇所】クロップサイズをminDim以下に制限
                 cropDim = Math.min(minDim, cropDim); 
 
                 let sx = (vw - cropDim) / 2;
                 let sy = (vh - cropDim) / 2;
 
-                // 【ズームバグ修正箇所】開始座標が負にならないように制限
                 sx = Math.max(0, sx);
                 sy = Math.max(0, sy);
                 
                 if (sx + cropDim > vw) cropDim = vw - sx;
                 if (sy + cropDim > vh) cropDim = vh - sy;
                 
-                // 1. 低解像度キャンバスに描画
                 offCtx.drawImage(video, sx, sy, cropDim, cropDim, 0, 0, GB_RES, GB_RES);
                 
                 const is16Color = palettes[config.paletteIdx].name === "16 COLOR";
                 
-                // ピクセル操作 (Dither & Palette)
                 const imgData = offCtx.getImageData(0,0,GB_RES,GB_RES); 
                 const d = imgData.data;
                 const cF = (259*(config.contrast*10+255))/(255*(259-config.contrast*10));
                 const bV = config.brightness*10;
                 
-                // 16色減色に必要な定数: R, G, Bを4階調（2ビット）に量子化
-                const Q_STEPS = 4; // 0〜3 (4階調)
-                const Q_MAX = Q_STEPS - 1; 
-                const Q_FACTOR = 255 / Q_MAX; // 約85
+                const Q_STEPS = 4; const Q_MAX = Q_STEPS - 1; const Q_FACTOR = 255 / Q_MAX; 
 
                 let x = 0; let y = 0;
                 for(let i=0; i<d.length; i+=4) {
                     
                     if (is16Color) {
-                        // 16色（R, G, B各4階調）量子化を適用
-                        
-                        // 1. コントラスト/明るさ補正 (R, G, B個別に適用)
                         let r = cF * (d[i] - 128) + 128 + bV;
                         let g = cF * (d[i+1] - 128) + 128 + bV;
                         let b = cF * (d[i+2] - 128) + 128 + bV;
 
-                        // 2. 4階調量子化
                         r = Math.round(r / 255 * Q_MAX) * Q_FACTOR;
                         g = Math.round(g / 255 * Q_MAX) * Q_FACTOR;
                         b = Math.round(b / 255 * Q_MAX) * Q_FACTOR;
                         
-                        // 3. 値を0-255にクランプしてセット
                         d[i] = Math.min(255, Math.max(0, r));
                         d[i+1] = Math.min(255, Math.max(0, g));
                         d[i+2] = Math.min(255, Math.max(0, b));
                         
                     } else {
-                        // 従来の4色パレット処理
                         const pal = palettes[config.paletteIdx].colors;
                         
                         let g = 0.299*d[i] + 0.587*d[i+1] + 0.114*d[i+2];
@@ -412,13 +549,12 @@
 
         function drawFrame(pal, ctx) {
             const type = frames[config.frameIdx]; 
-            // 16色時はパレットの代わりに黒/白を使用
             const is16Color = palettes[config.paletteIdx].name === "16 COLOR";
             const dk = pal.length > 0 && !is16Color ? `rgb(${pal[0].join(',')})` : '#000', 
                   lt = pal.length > 0 && !is16Color ? `rgb(${pal[3].join(',')})` : '#FFF';
             ctx.fillStyle = dk;
+            const borderSize = 80; // WHITE BORDERの太さ (1080p基準)
 
-            // 1080p基準でのサイズ指定
             if (type==="FILM") { 
                 ctx.fillRect(0,0,1080,60); ctx.fillRect(0,1020,1080,60); 
                 ctx.fillRect(0,0,60,1080); ctx.fillRect(1020,0,60,1080); 
@@ -428,25 +564,6 @@
                 ctx.fillStyle="rgba(0,0,0,0.2)"; 
                 for(let y=0;y<1080;y+=8) ctx.fillRect(0,y,1080,4); 
             } 
-            else if (type==="VIGNETTE") { 
-                const s = 60; 
-                ctx.fillRect(0,0,s,s); ctx.fillRect(1080-s,0,s,s); 
-                ctx.fillRect(0,1080-s,s,s); ctx.fillRect(1080-s,1080-s,s,s); 
-            }
-            else if (type==="DOT MATRIX") {
-                ctx.fillStyle="rgba(0,0,0,0.2)";
-                for(let y=0;y<1080;y+=16) {
-                    for(let x=0;x<1080;x+=16) {
-                        ctx.fillRect(x+1, y+1, 6, 6);
-                    }
-                }
-            }
-            else if (type==="LCD BORDER") {
-                const b = 25; 
-                ctx.fillStyle=dk;
-                ctx.fillRect(0,0,1080,b); ctx.fillRect(0,1080-b,1080,b);
-                ctx.fillRect(0,b,b,1080-2*b); ctx.fillRect(1080-b,b,b,1080-2*b);
-            }
             else if (type==="DATETIME") {
                 const now = new Date();
                 const dateStr = `${now.getFullYear()}/${(now.getMonth()+1).toString().padStart(2, '0')}/${now.getDate().toString().padStart(2, '0')}`;
@@ -458,10 +575,30 @@
                 ctx.fillStyle=lt; ctx.font = "40px 'Press Start 2P'"; ctx.fillText(dateStr, 80, 40);
                 ctx.fillText(timeStr, 80, 75);
             }
+            // 新しい WHITE BORDER フレーム
+            else if (type==="WHITE BORDER") {
+                ctx.fillStyle="white"; 
+                // 外側の枠
+                ctx.fillRect(0, 0, 1080, borderSize); // 上
+                ctx.fillRect(0, 1080 - borderSize, 1080, borderSize); // 下
+                ctx.fillRect(0, borderSize, borderSize, 1080 - 2 * borderSize); // 左
+                ctx.fillRect(1080 - borderSize, borderSize, borderSize, 1080 - 2 * borderSize); // 右
+                
+                // 枠内にパレットのメインカラーで小さな縁取り
+                ctx.fillStyle = dk; 
+                const innerBorder = borderSize + 10;
+                ctx.fillRect(borderSize, borderSize, 1080 - 2*borderSize, 10); // 上内側
+                ctx.fillRect(borderSize, 1080 - borderSize - 10, 1080 - 2*borderSize, 10); // 下内側
+                ctx.fillRect(borderSize, borderSize, 10, 1080 - 2*borderSize); // 左内側
+                ctx.fillRect(1080 - borderSize - 10, borderSize, 10, 1080 - 2*borderSize); // 右内側
+
+            }
         }
 
         function showToast(msg) { toast.innerText = msg; toast.style.display = 'block'; clearTimeout(toast.timer); toast.timer = setTimeout(() => toast.style.display = 'none', 1000); }
         function handleDpad(key) {
+            if (previewContainer.style.display === 'flex') return;
+
             if (key === 'up') config.brightness = Math.min(5, config.brightness + 1);
             if (key === 'down') config.brightness = Math.max(-5, config.brightness - 1);
             if (key === 'right') config.contrast = Math.min(5, config.contrast + 1);
@@ -472,23 +609,31 @@
 
         // Bボタン: パレット切り替え
         document.getElementById('btnB').addEventListener('click', (e) => {
-            e.preventDefault(); config.paletteIdx = (config.paletteIdx + 1) % palettes.length; 
+            e.preventDefault(); 
+            if (previewContainer.style.display === 'flex') return;
+            config.paletteIdx = (config.paletteIdx + 1) % palettes.length; 
             showToast(palettes[config.paletteIdx].name);
         });
 
         // SELECTボタン: フレーム切り替え
         document.getElementById('btnSelect').addEventListener('click', (e) => {
-            e.preventDefault(); config.frameIdx = (config.frameIdx + 1) % frames.length; showToast(`FRAME: ${frames[config.frameIdx]}`);
+            e.preventDefault(); 
+            if (previewContainer.style.display === 'flex') return;
+            config.frameIdx = (config.frameIdx + 1) % frames.length; showToast(`FRAME: ${frames[config.frameIdx]}`);
         });
 
+        // STARTボタン: カメラ切り替え
         document.getElementById('btnStart').addEventListener('click', (e) => {
-            e.preventDefault(); config.camFacing = (config.camFacing === 'user') ? 'environment' : 'user';
+            e.preventDefault(); 
+            if (previewContainer.style.display === 'flex') return;
+            config.camFacing = (config.camFacing === 'user') ? 'environment' : 'user';
             initCamera(); showToast("SWITCH CAM");
         });
 
         const btnA = document.getElementById('btnA');
         function startPressA(e) {
-            e.preventDefault(); if(isRecording) return;
+            e.preventDefault(); 
+            if (isRecording || previewContainer.style.display === 'flex') return;
             isLongPress = false; btnA.classList.add('pressing');
             longPressTimer = setTimeout(() => {
                 isLongPress = true; mediaRecorder.start(); isRecording = true; led.classList.add('on'); showToast("REC 1080P");
@@ -496,13 +641,13 @@
         }
         function endPressA(e) {
             e.preventDefault(); clearTimeout(longPressTimer); btnA.classList.remove('pressing');
+            if (previewContainer.style.display === 'flex') return;
+
             if (isLongPress) {
-                // 長押し: 録画停止と保存 (saveVideo関数内で自動的にダウンロードがトリガーされる)
-                if(isRecording) { mediaRecorder.stop(); isRecording = false; led.classList.remove('on'); showToast("SAVED"); }
+                if(isRecording) { mediaRecorder.stop(); isRecording = false; led.classList.remove('on'); }
             } else {
-                // 短押し: 写真撮影と保存 (ダウンロードがトリガーされる)
-                const a = document.createElement('a'); a.download = `gb-photo-${Date.now()}.png`; a.href = canvas.toDataURL('image/png', 1.0); a.click();
-                // Flash effect (Canvas opacity)
+                const dataURL = canvas.toDataURL('image/png', 1.0);
+                showImagePreview(dataURL);
                 canvas.style.opacity = 0; setTimeout(() => canvas.style.opacity = 1, 100);
             }
             isLongPress = false;
@@ -512,14 +657,6 @@
 
         ['Up','Down','Left','Right'].forEach(d => document.getElementById('d'+d).addEventListener('click', (e)=>{ e.preventDefault(); handleDpad(d.toLowerCase()); }));
         
-        // 【保存機能の確認】写真と動画はブラウザのダウンロード機能により、デバイスに保存されます。
-        function saveVideo() { 
-            const b = new Blob(recordedChunks, {type: recMimeType}); 
-            const u = URL.createObjectURL(b); 
-            const a = document.createElement('a'); 
-            a.href=u; a.download=`gb-video-${Date.now()}.${recExt}`; a.click(); recordedChunks=[]; 
-        }
-
         initCamera(); 
         applyZoom(config.zoomLevel); 
         showToast("READY (1080P)");

@@ -2,7 +2,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=no">
-    <title>GB Camera V16 (1080p) - Final</title>
+    <title>GB Camera V16 (1080p) - Final Fix</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -157,7 +157,6 @@
         .btn-wrapper { display: flex; flex-direction: column; align-items: center; }
         .btn-oval { width: 50px; height: 12px; background: #666; border-radius: 10px; transform: rotate(-25deg); box-shadow: 1px 1px 3px rgba(0,0,0,0.4); cursor: pointer; transition: transform 0.05s, box-shadow 0.05s; }
         .btn-oval:active { transform: rotate(-25deg) translate(1px, 1px); box-shadow: inset 1px 1px 5px rgba(0,0,0,0.7); }
-        /* ★修正: ラベルの位置を右にずらしてバランス調整 */
         .meta-label { margin-top: 8px; margin-left: 5px; font-size: 8px; color: #444; font-weight: bold; letter-spacing: 1px; transform: rotate(-25deg); }
 
         .zoom-integrator { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); width: 240px; height: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
@@ -254,7 +253,10 @@
         window.addEventListener('load', autoFitScreen); window.addEventListener('resize', autoFitScreen);
 
         const GB_RES = 135; const FINAL_RES = 1080;
+        // FPSを統一して負荷を軽減
+        const FPS = 24;
         const config = { paletteIdx: 0, frameIdx: 0, brightness: 0, contrast: 2, camFacing: 'environment', zoomLevel: 1.0, locationName: "SHIBUYA, TOKYO" };
+        
         const palettes = [
             { name: "CLASSIC GREEN", colors: [[15,56,15], [48,98,48], [139,172,15], [155,188,15]], border: "#306230" },
             { name: "GREY SCALE", colors: [[20,20,20], [80,80,80], [160,160,160], [240,240,240]], border: "#555" },
@@ -280,21 +282,65 @@
         const btnSave = document.getElementById('btnSave');
         const btnCancel = document.getElementById('btnCancel');
         
-        let mediaRecorder, recordedChunks = [], stream = null, longPressTimer, isRecording = false, isLongPress = false;
-        let currentMediaBlob = null, currentMediaExt = null;
-        let recMimeType = 'video/webm'; let recExt = 'webm';
+        let mediaRecorder = null;
+        let recordedChunks = [];
+        let stream = null;
+        let longPressTimer;
+        let isRecording = false;
+        let isLongPress = false;
+        let currentMediaBlob = null;
+        let currentMediaExt = null;
+        let recMimeType = '';
+
+        // 対応MIMEタイプの自動検出（互換性向上）
+        function getSupportedMimeType() {
+            const types = [
+                'video/mp4',
+                'video/webm;codecs=vp9',
+                'video/webm;codecs=vp8',
+                'video/webm'
+            ];
+            for (const type of types) {
+                if (MediaRecorder.isTypeSupported(type)) return type;
+            }
+            return '';
+        }
 
         async function initCamera() {
             if (stream) stream.getTracks().forEach(t => t.stop());
             try {
-                stream = await navigator.mediaDevices.getUserMedia({ video: { width: {ideal: 1080}, height: {ideal: 1080}, facingMode: config.camFacing }, audio: false });
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { width: {ideal: 1080}, height: {ideal: 1080}, facingMode: config.camFacing }, 
+                    audio: false 
+                });
                 video.srcObject = stream;
                 video.onloadedmetadata = () => { video.play(); requestAnimationFrame(loop); };
-                if (MediaRecorder.isTypeSupported('video/mp4')) { recMimeType = 'video/mp4'; recExt = 'mp4'; }
-                const recStream = canvas.captureStream(20);
-                mediaRecorder = new MediaRecorder(recStream, { mimeType: recMimeType, videoBitsPerSecond: 2500000 }); 
-                mediaRecorder.ondataavailable = e => { if(e.data.size>0) recordedChunks.push(e.data); };
-                mediaRecorder.onstop = showVideoPreview; 
+                
+                recMimeType = getSupportedMimeType();
+                if (!recMimeType) {
+                    console.warn("MediaRecorder not supported properly");
+                    showToast("REC NOT SUPPORTED");
+                    // 録画非対応でもカメラとしては動くようにreturnしない
+                } else {
+                    // ストリームのFPSを描画ループに合わせる
+                    const recStream = canvas.captureStream(FPS);
+                    
+                    // ビットレートを下げて負荷軽減 (1.0M) 
+                    mediaRecorder = new MediaRecorder(recStream, { 
+                        mimeType: recMimeType, 
+                        videoBitsPerSecond: 1000000 
+                    }); 
+
+                    mediaRecorder.ondataavailable = e => { 
+                        if(e.data && e.data.size > 0) recordedChunks.push(e.data); 
+                    };
+                    
+                    mediaRecorder.onstop = () => {
+                        // チャンク保存完了待ち
+                        setTimeout(showVideoPreview, 100);
+                    };
+                }
+
             } catch(e) { console.error(e); showToast("CAMERA ERROR"); }
         }
 
@@ -303,9 +349,6 @@
             zoomSlider.value = config.zoomLevel;
             showToast(`ZOOM: x${config.zoomLevel.toFixed(1)}`);
         }
-        zoomSlider.addEventListener('input', (e) => applyZoom(e.target.value));
-        btnResetZoom.addEventListener('click', () => applyZoom(1.0));
-        btnReload.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); location.reload(); });
 
         function showImagePreview(dataURL) {
             previewMediaImg.src = dataURL; previewMediaImg.style.display = 'block';
@@ -313,31 +356,51 @@
             currentMediaExt = 'png'; currentMediaBlob = dataURL; 
             showToast("PREVIEW PHOTO");
         }
+
         function showVideoPreview() { 
+            if (recordedChunks.length === 0) {
+                showToast("REC FAILED");
+                return;
+            }
             const blob = new Blob(recordedChunks, {type: recMimeType});
             const url = URL.createObjectURL(blob);
+            
             previewMediaVideo.src = url; previewMediaVideo.style.display = 'block';
             previewMediaImg.style.display = 'none'; previewContainer.style.display = 'flex';
-            currentMediaBlob = blob; currentMediaExt = recExt; recordedChunks = []; 
+            
+            // 拡張子の決定
+            const ext = recMimeType.includes('mp4') ? 'mp4' : 'webm';
+            currentMediaBlob = blob; currentMediaExt = ext; 
+            
             showToast("PREVIEW VIDEO");
         }
+
         function saveMedia() {
             if (!currentMediaBlob) return;
             const a = document.createElement('a'); const now = Date.now();
-            a.href = currentMediaExt === 'png' ? currentMediaBlob : URL.createObjectURL(currentMediaBlob);
+            
+            if (currentMediaExt === 'png') {
+                a.href = currentMediaBlob;
+            } else {
+                a.href = URL.createObjectURL(currentMediaBlob);
+            }
+            
             a.download = `gb-cam-${now}.${currentMediaExt}`;
+            document.body.appendChild(a);
             a.click();
+            document.body.removeChild(a);
+            
             if (currentMediaExt !== 'png') URL.revokeObjectURL(a.href);
             hidePreview(); showToast("SAVED");
         }
+
         function hidePreview() {
-            previewContainer.style.display = 'none'; previewMediaImg.src = ''; previewMediaVideo.src = '';
+            previewContainer.style.display = 'none'; 
+            previewMediaImg.src = ''; 
+            previewMediaVideo.pause();
+            previewMediaVideo.src = '';
+            recordedChunks = []; 
             if (previewMediaVideo.src) URL.revokeObjectURL(previewMediaVideo.src);
-        }
-        btnSave.addEventListener('click', saveMedia); btnCancel.addEventListener('click', hidePreview);
-        function updateLocation() {
-            config.locationName = "GETTING LOCATION...";
-            setTimeout(() => { config.locationName = "SHIBUYA, TOKYO"; showToast("LOCATION READY"); }, 1000);
         }
 
         // Core Render Logic
@@ -424,7 +487,7 @@
         }
 
         let lastTime = 0;
-        const FPS = 24;
+        
         function loop(timestamp) {
             if (video.readyState === 4 && previewContainer.style.display !== 'flex') {
                 if (timestamp - lastTime >= 1000/FPS) {
@@ -435,7 +498,6 @@
             requestAnimationFrame(loop);
         }
 
-        // Capture Photo
         function capturePhoto() {
             const captureCanvas = document.createElement('canvas');
             captureCanvas.width = FINAL_RES;
@@ -446,6 +508,7 @@
         }
 
         function showToast(msg) { toast.innerText = msg; toast.style.display = 'block'; clearTimeout(toast.timer); toast.timer = setTimeout(() => toast.style.display = 'none', 1000); }
+        
         function handleDpad(key) {
             if(previewContainer.style.display === 'flex') return;
             if(key==='up') config.brightness = Math.min(5, config.brightness+1);
@@ -484,30 +547,51 @@
         function startPressA(e) {
             e.preventDefault();
             if(isRecording || previewContainer.style.display === 'flex') return;
-            isLongPress = false; btnA.classList.add('pressing');
+            
+            isLongPress = false; 
+            btnA.classList.add('pressing');
+            
             longPressTimer = setTimeout(() => {
-                isLongPress = true; mediaRecorder.start(); isRecording = true; led.classList.add('on'); showToast("REC");
-            }, 400);
+                if (mediaRecorder && mediaRecorder.state === 'inactive') {
+                    isLongPress = true;
+                    recordedChunks = []; 
+                    mediaRecorder.start(1000); // 1秒ごとにデータ保存（メモリ対策）
+                    isRecording = true; 
+                    led.classList.add('on'); 
+                    showToast("REC STARTED");
+                }
+            }, 400); 
         }
+
         function endPressA(e) {
-            e.preventDefault(); clearTimeout(longPressTimer); btnA.classList.remove('pressing');
+            e.preventDefault(); 
+            clearTimeout(longPressTimer); 
+            btnA.classList.remove('pressing');
+
             if(previewContainer.style.display === 'flex') { saveMedia(); return; }
             
             if(isLongPress) {
-                if(isRecording) { mediaRecorder.stop(); isRecording = false; led.classList.remove('on'); }
+                if(isRecording && mediaRecorder && mediaRecorder.state === 'recording') { 
+                    mediaRecorder.stop(); 
+                    isRecording = false; 
+                    led.classList.remove('on'); 
+                }
             } else {
-                capturePhoto(); 
-                canvas.style.opacity = 0; setTimeout(()=>canvas.style.opacity=1, 100);
+                if (!isRecording) {
+                    capturePhoto(); 
+                    canvas.style.opacity = 0; setTimeout(()=>canvas.style.opacity=1, 100);
+                }
             }
             isLongPress = false;
         }
+
         btnA.addEventListener('mousedown', startPressA); btnA.addEventListener('touchstart', startPressA);
         btnA.addEventListener('mouseup', endPressA); btnA.addEventListener('touchend', endPressA);
 
         ['Up','Down','Left','Right'].forEach(d => document.getElementById('d'+d).addEventListener('click', (e)=>{ e.preventDefault(); handleDpad(d.toLowerCase()); }));
         
-        zoomSlider.addEventListener('input', (e) => { config.zoomLevel = parseFloat(e.target.value); showToast(`ZOOM: x${config.zoomLevel.toFixed(1)}`); });
-        btnResetZoom.addEventListener('click', (e) => { e.preventDefault(); zoomSlider.value = 1.0; config.zoomLevel = 1.0; });
+        zoomSlider.addEventListener('input', (e) => { applyZoom(e.target.value); });
+        btnResetZoom.addEventListener('click', (e) => { e.preventDefault(); applyZoom(1.0); });
         btnReload.addEventListener('click', (e) => { e.preventDefault(); location.reload(); });
         btnSave.addEventListener('click', saveMedia); btnCancel.addEventListener('click', hidePreview);
 
@@ -516,12 +600,6 @@
             setTimeout(() => { config.locationName = "SHIBUYA, TOKYO"; showToast("LOCATION READY"); }, 1000);
         }
 
-        function autoFitScreen() {
-            const scale = Math.min(window.innerWidth / 340, window.innerHeight / 600);
-            container.style.transform = `scale(${scale})`;
-        }
-        window.addEventListener('resize', autoFitScreen);
-        
         autoFitScreen();
         initCamera(); 
         showToast("READY (1080P)");

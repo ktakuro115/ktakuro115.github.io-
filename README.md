@@ -119,9 +119,9 @@
         /* ----- PREVIEW OVERLAY STYLES ----- */
         #previewContainer {
             position: absolute;
-            top: 50%;   /* 中央揃え */
-            left: 50%;  /* 中央揃え */
-            transform: translate(-50%, -50%); /* 中央揃え */
+            top: 50%;   
+            left: 50%;  
+            transform: translate(-50%, -50%);
             width: 220px;
             height: 220px;
             background: #000;
@@ -183,7 +183,7 @@
         .dpad-area { 
             position: absolute; 
             top: 10px; 
-            left: 45px; /* 配置調整済み */
+            left: 45px; 
             width: 100px; 
             height: 100px; 
         } 
@@ -203,7 +203,7 @@
         .d-left { width: 45px; height: 40px; top: 25px; left: -10px; }
         .d-right { width: 45px; height: 40px; top: 25px; right: -10px; }
         
-        /* D-PAD 凹み効果 (要望の機能) */
+        /* D-PAD 凹み効果 */
         .d-up:active ~ .cross.c-v { transform: translateY(-1px); box-shadow: inset 1px 1px 3px rgba(0,0,0,0.5); }
         .d-down:active ~ .cross.c-v { transform: translateY(1px); box-shadow: inset 1px 1px 3px rgba(0,0,0,0.5); }
         .d-left:active ~ .cross.c-h { transform: translateX(-1px); box-shadow: inset 1px 1px 3px rgba(0,0,0,0.5); }
@@ -243,7 +243,7 @@
         .btn-wrapper { display: flex; flex-direction: column; align-items: center; position: relative; }
         .btn-oval { 
             width: 50px; height: 12px; background: #666; border-radius: 10px; transform: rotate(-25deg); 
-            box-shadow: 1px 1px 3px rgba(0,0,0,0.4); cursor: pointer; position: relative; -webkit-tap-highlight-color: transparent; 
+            box-shadow: 1px 1px 3px rgba(0,0,0,0.4); cursor: pointer; position: relative; 
             transition: transform 0.05s ease, box-shadow 0.05s ease;
         }
         /* START/SELECT ボタンの凹み効果 */
@@ -272,18 +272,29 @@
             box-shadow: inset 1px 1px 1px rgba(255,255,255,0.3), inset -1px -1px 1px rgba(0,0,0,0.5), 2px 2px 4px rgba(0,0,0,0.5);
             background-image: linear-gradient(90deg, transparent 50%, rgba(0,0,0,0.2) 50%); background-size: 4px 100%;
         }
-        #btnResetZoom {
+        #btnResetZoom, #btnReload {
             width: 20px; height: 20px; border-radius: 50%; background: #888; border: none;
             box-shadow: 2px 2px 4px rgba(0,0,0,0.4), inset 1px 1px 2px rgba(255,255,255,0.4); cursor: pointer; font-size: 0; position: relative;
             transition: transform 0.05s ease, box-shadow 0.05s ease;
+            margin-left: 5px;
         }
-        /* Reset Zoom ボタンの凹み効果 */
-        #btnResetZoom:active { 
+        /* Zoom/Reload ボタンの凹み効果 */
+        #btnResetZoom:active, #btnReload:active { 
             transform: scale(0.9);
             box-shadow: inset 0 0 8px rgba(0,0,0,0.6);
         }
 
         #btnResetZoom::after { content: "R"; font-size: 8px; color: #333; font-weight: bold; position: absolute; top:50%; left:50%; transform:translate(-50%,-50%); }
+        #btnReload::after {
+            content: "↻"; 
+            font-size: 14px; 
+            color: #333; 
+            font-weight: bold; 
+            position: absolute; 
+            top:50%; left:50%; 
+            transform:translate(-50%,-50%); 
+            line-height: 1;
+        }
 
         .battery-led { position: absolute; left: 10px; top: 40%; width: 8px; height: 8px; background: #444; border-radius: 50%; transition: 0.1s; }
         .battery-led.on { background: #f00; box-shadow: 0 0 8px #f00; }
@@ -337,6 +348,7 @@
                     <div class="slider-container">
                         <input type="range" id="zoomSlider" min="0.5" max="2.0" step="0.01" value="1.0"> 
                         <button id="btnResetZoom" title="Reset Zoom"></button> 
+                        <button id="btnReload" title="Reload Page"></button> 
                     </div>
                 </div>
             </div>
@@ -346,20 +358,18 @@
     <video id="video" autoplay playsinline muted></video>
 
     <script>
-        // --- UI SCALE (Auto Fit) ---
         const container = document.getElementById('gbContainer');
         const zoomSlider = document.getElementById('zoomSlider');
         const btnResetZoom = document.getElementById('btnResetZoom'); 
+        const btnReload = document.getElementById('btnReload'); 
         
         function autoFitScreen() {
             const baseW = 340; const baseH = 600;
-            // 画面の高さに合わせて本体を拡大 (画面いっぱいに広がるように修正)
             const s = window.innerHeight / baseH; 
             container.style.transform = `scale(${s})`;
         }
         window.addEventListener('load', autoFitScreen); window.addEventListener('resize', autoFitScreen);
 
-        // --- CONFIG ---
         const GB_RES = 135; 
         const FINAL_RES = 1080;
 
@@ -377,7 +387,6 @@
 
         const canvas = document.getElementById('gbCanvas');
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
-        
         const offCanvas = document.createElement('canvas');
         offCanvas.width = GB_RES; offCanvas.height = GB_RES;
         const offCtx = offCanvas.getContext('2d', { willReadFrequently: true });
@@ -385,8 +394,6 @@
         const video = document.getElementById('video');
         const led = document.getElementById('led');
         const toast = document.getElementById('toast');
-
-        // --- PREVIEW ELEMENTS ---
         const previewContainer = document.getElementById('previewContainer');
         const previewMediaImg = document.getElementById('previewMediaImg');
         const previewMediaVideo = document.getElementById('previewMediaVideo');
@@ -394,11 +401,9 @@
         const btnCancel = document.getElementById('btnCancel');
         let currentMediaBlob = null;
         let currentMediaExt = null;
-        // ------------------------
         
         let isRecording = false, mediaRecorder, recordedChunks = [], stream = null, longPressTimer, isLongPress = false;
 
-        // MP4 Setup
         let recMimeType = 'video/webm'; let recExt = 'webm';
         if (MediaRecorder.isTypeSupported('video/mp4')) { recMimeType = 'video/mp4'; recExt = 'mp4'; }
         else if (MediaRecorder.isTypeSupported('video/mp4;codecs=h264')) { recMimeType = 'video/mp4;codecs=h264'; recExt = 'mp4'; }
@@ -417,7 +422,6 @@
             } catch(e) { console.error(e); showToast("CAMERA ERROR"); }
         }
 
-        // --- ZOOOM CONTROLS ---
         function applyZoom(zoom) { 
             config.zoomLevel = parseFloat(zoom); 
             zoomSlider.value = config.zoomLevel;
@@ -426,8 +430,12 @@
         
         zoomSlider.addEventListener('input', (e) => applyZoom(e.target.value));
         btnResetZoom.addEventListener('click', () => applyZoom(1.0));
-
-        // --- PREVIEW AND SAVE LOGIC ---
+        // ★修正箇所: イベント伝播の停止を追加し、リロードを確実にする
+        btnReload.addEventListener('click', (e) => { 
+            e.preventDefault(); 
+            e.stopPropagation(); 
+            location.reload(); 
+        }); 
 
         function showImagePreview(dataURL) {
             previewMediaImg.src = dataURL;
@@ -492,7 +500,6 @@
         btnSave.addEventListener('click', saveMedia);
         btnCancel.addEventListener('click', hidePreview);
 
-        // --- LOCATION GETTER (Simplified/Fake for Demo) ---
         function updateLocation() {
             config.locationName = "GETTING LOCATION...";
             setTimeout(() => {
@@ -501,8 +508,6 @@
             }, 1000);
         }
         
-        // --- RENDERING LOOP ---
-
         function loop() {
             if (video.readyState === 4) {
                 const vw = video.videoWidth, vh = video.videoHeight;
@@ -514,15 +519,9 @@
                 }
                 
                 const zoomFactor = 1.0 / config.zoomLevel; 
-                let cropDim = minDim * zoomFactor; 
-                
-                cropDim = Math.min(minDim, cropDim); 
-
-                let sx = (vw - cropDim) / 2;
-                let sy = (vh - cropDim) / 2;
-
-                sx = Math.max(0, sx);
-                sy = Math.max(0, sy);
+                let cropDim = Math.min(minDim, minDim * zoomFactor); 
+                let sx = Math.max(0, (vw - cropDim) / 2);
+                let sy = Math.max(0, (vh - cropDim) / 2);
                 
                 if (sx + cropDim > vw) cropDim = vw - sx;
                 if (sy + cropDim > vh) cropDim = vh - sy;
@@ -570,15 +569,11 @@
                 }
                 offCtx.putImageData(imgData,0,0);
 
-
-                // 2. 1080pキャンバスに拡大描画
                 ctx.imageSmoothingEnabled = false;
                 ctx.drawImage(offCanvas, 0, 0, FINAL_RES, FINAL_RES);
 
-                // 3. フレームなどの高解像度オーバーレイ
                 drawFrame(palettes[config.paletteIdx].colors, ctx);
                 
-                // 16色時はScanlinesを薄く
                 canvas.parentElement.querySelector('.scanlines').style.opacity = is16Color ? 0.1 : 0.4;
             }
             requestAnimationFrame(loop);
@@ -614,15 +609,14 @@
             }
             else if (type==="WHITE BORDER") {
                 ctx.fillStyle="white"; 
-                // 外側の白い枠のみを描画
-                ctx.fillRect(0, 0, 1080, borderSize); // 上
-                ctx.fillRect(0, 1080 - borderSize, 1080, borderSize); // 下
-                ctx.fillRect(0, borderSize, borderSize, 1080 - 2 * borderSize); // 左
-                ctx.fillRect(1080 - borderSize, borderSize, borderSize, 1080 - 2 * borderSize); // 右
+                ctx.fillRect(0, 0, 1080, borderSize); 
+                ctx.fillRect(0, 1080 - borderSize, 1080, borderSize);
+                ctx.fillRect(0, borderSize, borderSize, 1080 - 2 * borderSize);
+                ctx.fillRect(1080 - borderSize, borderSize, borderSize, 1080 - 2 * borderSize);
             }
             else if (type==="LOCATION TAG") {
                 ctx.fillStyle=dk;
-                ctx.fillRect(0, 0, 1080, 80); // 上部の黒いバー
+                ctx.fillRect(0, 0, 1080, 80);
                 
                 ctx.fillStyle=lt; 
                 ctx.font = "40px 'Press Start 2P'"; 
@@ -642,33 +636,27 @@
             if (key === 'left' || key === 'right') showToast(`CONTRAST: ${config.contrast}`);
         }
 
-        // Bボタン: パレット切り替え (通常時) / キャンセル (プレビュー時)
         document.getElementById('btnB').addEventListener('click', (e) => {
             e.preventDefault(); 
             if (previewContainer.style.display === 'flex') {
-                // プレビュー時: キャンセル
                 hidePreview(); 
                 return;
             }
-            // 通常時: パレット切り替え
             config.paletteIdx = (config.paletteIdx + 1) % palettes.length; 
             showToast(palettes[config.paletteIdx].name);
         });
 
-        // SELECTボタン: フレーム切り替え
         document.getElementById('btnSelect').addEventListener('click', (e) => {
             e.preventDefault(); 
             if (previewContainer.style.display === 'flex') return;
             config.frameIdx = (config.frameIdx + 1) % frames.length; 
             showToast(`FRAME: ${frames[config.frameIdx]}`);
             
-            // LOCATION TAGが選択されたら、地名取得を試みる
             if (frames[config.frameIdx] === "LOCATION TAG") {
                 updateLocation();
             }
         });
 
-        // STARTボタン: カメラ切り替え
         document.getElementById('btnStart').addEventListener('click', (e) => {
             e.preventDefault(); 
             if (previewContainer.style.display === 'flex') return;
@@ -689,16 +677,13 @@
             e.preventDefault(); clearTimeout(longPressTimer); btnA.classList.remove('pressing');
             
             if (previewContainer.style.display === 'flex') {
-                // プレビュー時: 保存
                 saveMedia();
                 return;
             }
 
             if (isLongPress) {
-                // 通常時 (長押し): 録画停止 -> プレビュー表示
                 if(isRecording) { mediaRecorder.stop(); isRecording = false; led.classList.remove('on'); }
             } else {
-                // 通常時 (短押し): 写真撮影 -> プレビュー表示
                 const dataURL = canvas.toDataURL('image/png', 1.0);
                 showImagePreview(dataURL);
                 canvas.style.opacity = 0; setTimeout(() => canvas.style.opacity = 1, 100);
@@ -710,7 +695,6 @@
 
         ['Up','Down','Left','Right'].forEach(d => document.getElementById('d'+d).addEventListener('click', (e)=>{ e.preventDefault(); handleDpad(d.toLowerCase()); }));
         
-        // 初期位置情報取得を試みる
         updateLocation(); 
         initCamera(); 
         applyZoom(config.zoomLevel); 

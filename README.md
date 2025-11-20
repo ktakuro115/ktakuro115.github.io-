@@ -2,7 +2,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=no">
-    <title>GB Camera V16 (1080p) - Fixed Capture</title>
+    <title>GB Camera V16 (1080p) - Final Polished</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -18,10 +18,6 @@
 
         body {
             background-color: #151515;
-            background-image: 
-                linear-gradient(rgba(50, 50, 50, 0.5) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(50, 50, 50, 0.5) 1px, transparent 1px);
-            background-size: 30px 30px;
             font-family: var(--font-main);
             height: 100vh;
             width: 100vw;
@@ -36,14 +32,10 @@
         }
 
         /* ----- CONTAINER ----- */
-        /* スマホ画面に合わせて自動縮小する設定 (JS不要) */
         #gbContainer {
             width: 340px;
             height: 600px; 
             transform-origin: center center;
-            /* 画面からはみ出さないように最大サイズを制限 */
-            max-height: 95vh;
-            max-width: 95vw;
             position: relative;
         }
 
@@ -53,15 +45,11 @@
             width: 100%;
             height: 100%;
             border-radius: 15px 15px 40px 15px;
-            box-shadow: 
-                inset 3px 3px 5px rgba(255,255,255,0.6),
-                inset -3px -3px 5px rgba(0,0,0,0.2),
-                15px 15px 40px rgba(0,0,0,0.6);
+            box-shadow: inset 3px 3px 5px rgba(255,255,255,0.6), inset -3px -3px 5px rgba(0,0,0,0.2);
             display: flex;
             flex-direction: column;
             align-items: center;
             padding-top: 25px;
-            box-sizing: border-box;
             position: relative;
             border-right: 4px solid #999;
             border-bottom: 4px solid #999;
@@ -71,7 +59,6 @@
             position: absolute; top: 10px; left: 25px;
             color: #666; font-size: 10px; font-weight: bold;
             font-style: italic; letter-spacing: 1px;
-            text-shadow: 0 1px 0 rgba(255,255,255,0.4);
         }
 
         /* SCREEN AREA */
@@ -95,7 +82,6 @@
             border: 2px solid #333;
         }
 
-        /* CANVAS: 常に正方形でフィットさせる */
         canvas {
             display: block; 
             width: 100%; 
@@ -117,7 +103,7 @@
             font-family: var(--font-main); border: 1px solid #fff; text-transform: uppercase; z-index: 10;
         }
 
-        /* PREVIEW OVERLAY */
+        /* PREVIEW OVERLAY (修正: ボタンサイズ調整) */
         #previewContainer {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: #222; z-index: 20; display: none; 
@@ -128,11 +114,13 @@
         }
         #previewControls {
             position: absolute; bottom: 10px; width: 100%;
-            display: flex; justify-content: center; gap: 20px;
+            display: flex; justify-content: center; gap: 15px; /* 間隔調整 */
         }
         #previewControls button {
-            background: #cc3333; color: #fff; border: 2px solid #fff; padding: 8px 15px;
-            font-family: var(--font-main); font-size: 10px; cursor: pointer; box-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            background: #cc3333; color: #fff; border: 2px solid #fff; 
+            padding: 6px 10px; /* サイズ縮小 */
+            font-family: var(--font-main); font-size: 8px; /* 文字サイズ縮小 */
+            cursor: pointer; box-shadow: 2px 2px 4px rgba(0,0,0,0.5);
         }
         #previewControls button:active { transform: translate(1px, 1px); box-shadow: inset 1px 1px 3px rgba(0,0,0,0.6); }
 
@@ -171,13 +159,32 @@
         .zoom-integrator { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); width: 240px; height: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
         .zoom-label { font-size: 8px; color: #666; letter-spacing: 2px; margin-bottom: 5px; text-shadow: 1px 1px 0 rgba(255,255,255,0.5); font-weight: bold; }
         .slider-container { display: flex; align-items: center; gap: 10px; background: #b6b6b6; padding: 5px 15px; border-radius: 30px; box-shadow: inset 2px 2px 5px rgba(0,0,0,0.3), inset -1px -1px 2px rgba(255,255,255,0.5); }
+        
+        /* 修正: ズームとリロードのアイコン位置調整 */
+        #btnResetZoom, #btnReload { 
+            width: 20px; height: 20px; border-radius: 50%; background: #888; border: none; 
+            box-shadow: 2px 2px 4px rgba(0,0,0,0.4), inset 1px 1px 2px rgba(255,255,255,0.4); 
+            cursor: pointer; margin-left: 5px; transition: transform 0.05s; 
+            position: relative; /* 擬似要素の親として設定 */
+        }
+        #btnResetZoom:active, #btnReload:active { transform: scale(0.9); box-shadow: inset 0 0 8px rgba(0,0,0,0.6); }
+        
+        #btnResetZoom::after { 
+            content: "R"; font-size: 8px; color: #333; font-weight: bold; 
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); 
+            line-height: 1; display: block;
+        }
+        #btnReload::after { 
+            content: "↻"; font-size: 12px; color: #333; font-weight: bold; 
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); 
+            line-height: 1; display: block;
+        }
+
         input[type=range] { -webkit-appearance: none; width: 140px; background: transparent; }
+        input[type=range]:focus { outline: none; }
         input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 6px; cursor: pointer; background: #333; border-radius: 3px; box-shadow: inset 1px 1px 2px rgba(0,0,0,0.8); }
         input[type=range]::-webkit-slider-thumb { height: 18px; width: 28px; border-radius: 4px; background: #555; cursor: pointer; -webkit-appearance: none; margin-top: -6px; box-shadow: inset 1px 1px 1px rgba(255,255,255,0.3), inset -1px -1px 1px rgba(0,0,0,0.5), 2px 2px 4px rgba(0,0,0,0.5); background-image: linear-gradient(90deg, transparent 50%, rgba(0,0,0,0.2) 50%); background-size: 4px 100%; }
-        #btnResetZoom, #btnReload { width: 20px; height: 20px; border-radius: 50%; background: #888; border: none; box-shadow: 2px 2px 4px rgba(0,0,0,0.4), inset 1px 1px 2px rgba(255,255,255,0.4); cursor: pointer; margin-left: 5px; transition: transform 0.05s; }
-        #btnResetZoom:active, #btnReload:active { transform: scale(0.9); box-shadow: inset 0 0 8px rgba(0,0,0,0.6); }
-        #btnResetZoom::after { content: "R"; font-size: 8px; color: #333; font-weight: bold; position: absolute; top:50%; left:50%; transform:translate(-50%,-50%); }
-        #btnReload::after { content: "↻"; font-size: 14px; color: #333; font-weight: bold; position: absolute; top:50%; left:50%; transform:translate(-50%,-50%); line-height: 1; }
+
         .battery-led { position: absolute; left: 10px; top: 40%; width: 8px; height: 8px; background: #444; border-radius: 50%; transition: 0.1s; }
         .battery-led.on { background: #f00; box-shadow: 0 0 8px #f00; }
         video { display: none; }
@@ -198,7 +205,7 @@
                         <video id="previewMediaVideo" controls autoplay loop></video>
                         <div id="previewControls">
                             <button id="btnCancel">CANCEL</button>
-                            <button id="btnSave">SAVE TO DEVICE</button>
+                            <button id="btnSave">SAVE</button>
                         </div>
                     </div>
                 </div>
@@ -222,7 +229,7 @@
                     <div class="slider-container">
                         <input type="range" id="zoomSlider" min="1.0" max="2.0" step="0.01" value="1.0"> 
                         <button id="btnResetZoom" title="Reset Zoom"></button> 
-                        <button id="btnReload" title="Reload"></button> 
+                        <button id="btnReload" title="Reload Page"></button> 
                     </div>
                 </div>
             </div>
@@ -236,16 +243,21 @@
         const btnResetZoom = document.getElementById('btnResetZoom');
         const btnReload = document.getElementById('btnReload');
         
-        const GB_RES = 135; 
-        const FINAL_RES = 1080;
-        
+        function autoFitScreen() {
+            const baseH = 600;
+            const s = window.innerHeight / baseH; 
+            container.style.transform = `scale(${s})`;
+        }
+        window.addEventListener('load', autoFitScreen); window.addEventListener('resize', autoFitScreen);
+
+        const GB_RES = 135; const FINAL_RES = 1080;
         const config = { paletteIdx: 0, frameIdx: 0, brightness: 0, contrast: 2, camFacing: 'environment', zoomLevel: 1.0, locationName: "SHIBUYA, TOKYO" };
         const palettes = [
-            { name: "CLASSIC GREEN", colors: [[15,56,15], [48,98,48], [139,172,15], [155,188,15]] },
-            { name: "GREY SCALE", colors: [[20,20,20], [80,80,80], [160,160,160], [240,240,240]] },
-            { name: "VIRTUAL RED", colors: [[40,0,0], [100,0,0], [180,0,0], [255,50,50]] },
-            { name: "CYBER BLUE", colors: [[0,20,40], [0,70,110], [0,140,190], [180,230,255]] },
-            { name: "16 COLOR", colors: [] } 
+            { name: "CLASSIC GREEN", colors: [[15,56,15], [48,98,48], [139,172,15], [155,188,15]], border: "#306230" },
+            { name: "GREY SCALE", colors: [[20,20,20], [80,80,80], [160,160,160], [240,240,240]], border: "#555" },
+            { name: "VIRTUAL RED", colors: [[40,0,0], [100,0,0], [180,0,0], [255,50,50]], border: "#800" },
+            { name: "CYBER BLUE", colors: [[0,20,40], [0,70,110], [0,140,190], [180,230,255]], border: "#004070" },
+            { name: "16 COLOR", colors: [], border: "#000" } 
         ];
         const frames = ["OFF", "LOCATION TAG", "DATETIME", "FILM", "SCANLINE", "WHITE BORDER"]; 
         const bayerMatrix = [[0, 8, 2, 10],[12, 4, 14, 6],[3, 11, 1, 9],[15, 7, 13, 5]];
@@ -259,7 +271,6 @@
         const video = document.getElementById('video');
         const led = document.getElementById('led');
         const toast = document.getElementById('toast');
-        
         const previewContainer = document.getElementById('previewContainer');
         const previewMediaImg = document.getElementById('previewMediaImg');
         const previewMediaVideo = document.getElementById('previewMediaVideo');
@@ -268,54 +279,82 @@
         
         let mediaRecorder, recordedChunks = [], stream = null, longPressTimer, isRecording = false, isLongPress = false;
         let currentMediaBlob = null, currentMediaExt = null;
+        let recMimeType = 'video/webm'; let recExt = 'webm';
 
-        // --- INITIALIZATION ---
         async function initCamera() {
             if (stream) stream.getTracks().forEach(t => t.stop());
             try {
                 stream = await navigator.mediaDevices.getUserMedia({ video: { width: {ideal: 1080}, height: {ideal: 1080}, facingMode: config.camFacing }, audio: false });
                 video.srcObject = stream;
                 video.onloadedmetadata = () => { video.play(); requestAnimationFrame(loop); };
-                
-                let mimeType = 'video/webm';
-                if (MediaRecorder.isTypeSupported('video/mp4')) mimeType = 'video/mp4';
-                
-                const recStream = canvas.captureStream(30);
-                mediaRecorder = new MediaRecorder(recStream, { mimeType: mimeType, videoBitsPerSecond: 2500000 }); 
-                mediaRecorder.ondataavailable = e => { if(e.data.size > 0) recordedChunks.push(e.data); };
-                mediaRecorder.onstop = showVideoPreview;
+                if (MediaRecorder.isTypeSupported('video/mp4')) { recMimeType = 'video/mp4'; recExt = 'mp4'; }
+                const recStream = canvas.captureStream(20);
+                mediaRecorder = new MediaRecorder(recStream, { mimeType: recMimeType, videoBitsPerSecond: 2500000 }); 
+                mediaRecorder.ondataavailable = e => { if(e.data.size>0) recordedChunks.push(e.data); };
+                mediaRecorder.onstop = showVideoPreview; 
             } catch(e) { console.error(e); showToast("CAMERA ERROR"); }
         }
 
-        // --- CORE DRAWING LOGIC ---
-        // 汎用描画関数。targetCanvasを指定することで、画面用にも保存用にも使える
+        function applyZoom(zoom) { 
+            config.zoomLevel = parseFloat(zoom); 
+            zoomSlider.value = config.zoomLevel;
+            showToast(`ZOOM: x${config.zoomLevel.toFixed(1)}`);
+        }
+        zoomSlider.addEventListener('input', (e) => applyZoom(e.target.value));
+        btnResetZoom.addEventListener('click', () => applyZoom(1.0));
+        btnReload.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); location.reload(); });
+
+        function showImagePreview(dataURL) {
+            previewMediaImg.src = dataURL; previewMediaImg.style.display = 'block';
+            previewMediaVideo.style.display = 'none'; previewContainer.style.display = 'flex';
+            currentMediaExt = 'png'; currentMediaBlob = dataURL; 
+            showToast("PREVIEW PHOTO");
+        }
+        function showVideoPreview() { 
+            const blob = new Blob(recordedChunks, {type: recMimeType});
+            const url = URL.createObjectURL(blob);
+            previewMediaVideo.src = url; previewMediaVideo.style.display = 'block';
+            previewMediaImg.style.display = 'none'; previewContainer.style.display = 'flex';
+            currentMediaBlob = blob; currentMediaExt = recExt; recordedChunks = []; 
+            showToast("PREVIEW VIDEO");
+        }
+        function saveMedia() {
+            if (!currentMediaBlob) return;
+            const a = document.createElement('a'); const now = Date.now();
+            a.href = currentMediaExt === 'png' ? currentMediaBlob : URL.createObjectURL(currentMediaBlob);
+            a.download = `gb-cam-${now}.${currentMediaExt}`;
+            a.click();
+            if (currentMediaExt !== 'png') URL.revokeObjectURL(a.href);
+            hidePreview(); showToast("SAVED");
+        }
+        function hidePreview() {
+            previewContainer.style.display = 'none'; previewMediaImg.src = ''; previewMediaVideo.src = '';
+            if (previewMediaVideo.src) URL.revokeObjectURL(previewMediaVideo.src);
+        }
+        btnSave.addEventListener('click', saveMedia); btnCancel.addEventListener('click', hidePreview);
+        function updateLocation() {
+            config.locationName = "GETTING LOCATION...";
+            setTimeout(() => { config.locationName = "SHIBUYA, TOKYO"; showToast("LOCATION READY"); }, 1000);
+        }
+
+        // Core Render Logic
         function renderToCanvas(targetCanvas, targetCtx, isForExport = false) {
             const vw = video.videoWidth, vh = video.videoHeight;
             if (vw === 0 || vh === 0) return;
-
             const minDim = Math.min(vw, vh);
-            const cropDim = minDim / config.zoomLevel; // Zoom logic
+            const cropDim = minDim / config.zoomLevel; 
+            let sx = (vw - cropDim) / 2, sy = (vh - cropDim) / 2;
             
-            // Center crop
-            let sx = (vw - cropDim) / 2;
-            let sy = (vh - cropDim) / 2;
-
-            // 1. Draw video to low-res canvas (resize & pixelate)
             offCtx.drawImage(video, sx, sy, cropDim, cropDim, 0, 0, GB_RES, GB_RES);
 
-            // 2. Pixel Manipulation (Dither/Color)
             const is16Color = palettes[config.paletteIdx].name === "16 COLOR";
             const imgData = offCtx.getImageData(0, 0, GB_RES, GB_RES);
             const d = imgData.data;
-            
-            // Contrast/Brightness
             const cF = (259 * (config.contrast * 10 + 255)) / (255 * (259 - config.contrast * 10));
             const bV = config.brightness * 10;
 
-            // Pixel Loop
             for(let i = 0; i < d.length; i += 4) {
                 if (is16Color) {
-                    // 16 Color Mode (4 bits per channel)
                     let r = cF * (d[i] - 128) + 128 + bV;
                     let g = cF * (d[i+1] - 128) + 128 + bV;
                     let b = cF * (d[i+2] - 128) + 128 + bV;
@@ -323,32 +362,21 @@
                     d[i+1] = Math.min(255, Math.max(0, Math.round(g / 85) * 85));
                     d[i+2] = Math.min(255, Math.max(0, Math.round(b / 85) * 85));
                 } else {
-                    // Classic GB Palettes
-                    const x = (i / 4) % GB_RES;
-                    const y = Math.floor((i / 4) / GB_RES);
+                    const x = (i / 4) % GB_RES, y = Math.floor((i / 4) / GB_RES);
                     let gray = 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2];
-                    gray = cF * (gray - 128) + 128 + bV;
-                    gray += (bayerMatrix[y % 4][x % 4] - 8) * 4; // Dither
-                    
-                    let idx = 0;
-                    if (gray >= 64) idx = 1;
-                    if (gray >= 128) idx = 2;
-                    if (gray >= 192) idx = 3;
-                    
+                    gray = cF * (gray - 128) + 128 + bV + (bayerMatrix[y % 4][x % 4] - 8) * 4;
+                    let idx = gray < 64 ? 0 : gray < 128 ? 1 : gray < 192 ? 2 : 3;
+                    if (gray < 0) idx = 0; if (gray > 255) idx = 3;
                     const pal = palettes[config.paletteIdx].colors;
                     d[i] = pal[idx][0]; d[i+1] = pal[idx][1]; d[i+2] = pal[idx][2];
                 }
             }
             offCtx.putImageData(imgData, 0, 0);
 
-            // 3. Draw to Target Canvas (Scale up to 1080p)
             targetCtx.imageSmoothingEnabled = false;
             targetCtx.drawImage(offCanvas, 0, 0, FINAL_RES, FINAL_RES);
-
-            // 4. Draw Frame (Overlay)
             drawFrame(targetCtx);
 
-            // 5. Scanlines (UI only)
             if (!isForExport) {
                 const scanlineEl = document.querySelector('.scanlines');
                 if(scanlineEl) scanlineEl.style.opacity = is16Color ? 0.1 : 0.4;
@@ -359,12 +387,9 @@
             const type = frames[config.frameIdx];
             const is16 = palettes[config.paletteIdx].name === "16 COLOR";
             const pal = is16 ? null : palettes[config.paletteIdx].colors;
-            
             const dk = is16 ? '#000' : `rgb(${pal[0].join(',')})`;
             const lt = is16 ? '#FFF' : `rgb(${pal[3].join(',')})`;
-            
-            ctx.fillStyle = dk;
-            const bs = 80; // border size
+            ctx.fillStyle = dk; const bs = 80;
 
             if (type === "FILM") {
                 ctx.fillRect(0, 0, 1080, 60); ctx.fillRect(0, 1020, 1080, 60);
@@ -391,74 +416,39 @@
             }
         }
 
-        // Main Loop
-        function loop() {
+        let lastTime = 0;
+        const FPS = 24;
+        function loop(timestamp) {
             if (video.readyState === 4 && previewContainer.style.display !== 'flex') {
-                renderToCanvas(canvas, ctx, false);
+                if (timestamp - lastTime >= 1000/FPS) {
+                    renderToCanvas(canvas, ctx, false);
+                    lastTime = timestamp;
+                }
             }
             requestAnimationFrame(loop);
         }
 
-        // --- CAPTURE LOGIC ---
+        // Capture Photo
         function capturePhoto() {
-            // 専用のCanvasを作成して、そこに現在の状態を「焼き付ける」
             const captureCanvas = document.createElement('canvas');
             captureCanvas.width = FINAL_RES;
             captureCanvas.height = FINAL_RES;
             const captureCtx = captureCanvas.getContext('2d');
-            
-            // 現在の設定で一度だけ描画を実行
             renderToCanvas(captureCanvas, captureCtx, true);
-            
-            // データを取得してプレビュー
-            const dataURL = captureCanvas.toDataURL('image/png', 1.0);
-            showImagePreview(dataURL);
+            showImagePreview(captureCanvas.toDataURL('image/png', 1.0));
         }
 
-        function showImagePreview(dataURL) {
-            previewMediaImg.src = dataURL; previewMediaImg.style.display = 'block';
-            previewMediaVideo.style.display = 'none'; previewContainer.style.display = 'flex';
-            currentMediaBlob = dataURL; currentMediaExt = 'png';
-            showToast("PREVIEW PHOTO");
-        }
-
-        function showVideoPreview() {
-            const blob = new Blob(recordedChunks, {type: mediaRecorder.mimeType});
-            const url = URL.createObjectURL(blob);
-            previewMediaVideo.src = url; previewMediaVideo.style.display = 'block';
-            previewMediaImg.style.display = 'none'; previewContainer.style.display = 'flex';
-            currentMediaBlob = blob; currentMediaExt = 'mp4'; recordedChunks = [];
-            showToast("PREVIEW VIDEO");
-        }
-
-        function saveMedia() {
-            if(!currentMediaBlob) return;
-            const a = document.createElement('a');
-            const now = Date.now();
-            let url = currentMediaBlob;
-            if(currentMediaExt !== 'png') url = URL.createObjectURL(currentMediaBlob);
-            
-            a.href = url; a.download = `gb-cam-${now}.${currentMediaExt}`;
-            a.click();
-            if(currentMediaExt !== 'png') URL.revokeObjectURL(url);
-            
-            hidePreview(); showToast("SAVED");
-        }
-
-        function hidePreview() {
-            previewContainer.style.display = 'none';
-            previewMediaImg.src = ''; previewMediaVideo.src = '';
-            if(previewMediaVideo.src) URL.revokeObjectURL(previewMediaVideo.src);
-        }
-
-        // --- INPUT HANDLERS ---
+        function showToast(msg) { toast.innerText = msg; toast.style.display = 'block'; clearTimeout(toast.timer); toast.timer = setTimeout(() => toast.style.display = 'none', 1000); }
         function handleDpad(key) {
-            if(previewContainer.style.display === 'flex') return;
-            if(key==='up') config.brightness = Math.min(5, config.brightness+1);
-            if(key==='down') config.brightness = Math.max(-5, config.brightness-1);
-            if(key==='right') config.contrast = Math.min(5, config.contrast+1);
-            if(key==='left') config.contrast = Math.max(-5, config.contrast-1);
-            showToast(key==='up'||key==='down' ? `BRIGHT: ${config.brightness}` : `CONTRAST: ${config.contrast}`);
+            if (previewContainer.style.display === 'flex') return;
+            if (key==='up') config.brightness = Math.min(5, config.brightness+1);
+            if (key==='down') config.brightness = Math.max(-5, config.brightness-1);
+            if (key==='right') config.contrast = Math.min(5, config.contrast+1);
+            if (key==='left') config.contrast = Math.max(-5, config.contrast-1);
+            // 修正: テキスト表示を復活
+            const label = (key==='up'||key==='down') ? 'BRIGHT' : 'CONTRAST';
+            const val = (key==='up'||key==='down') ? config.brightness : config.contrast;
+            showToast(`${label}: ${val}`);
         }
 
         document.getElementById('btnB').addEventListener('click', (e) => {
@@ -467,7 +457,6 @@
             config.paletteIdx = (config.paletteIdx + 1) % palettes.length;
             showToast(palettes[config.paletteIdx].name);
         });
-
         document.getElementById('btnSelect').addEventListener('click', (e) => {
             e.preventDefault(); 
             if(previewContainer.style.display === 'flex') return;
@@ -475,7 +464,6 @@
             showToast(`FRAME: ${frames[config.frameIdx]}`);
             if(frames[config.frameIdx] === "LOCATION TAG") updateLocation();
         });
-
         document.getElementById('btnStart').addEventListener('click', (e) => {
             e.preventDefault(); 
             if(previewContainer.style.display === 'flex') return;
@@ -483,7 +471,6 @@
             initCamera(); showToast("SWITCH CAM");
         });
 
-        // A Button Logic
         const btnA = document.getElementById('btnA');
         function startPressA(e) {
             e.preventDefault();
@@ -500,35 +487,16 @@
             if(isLongPress) {
                 if(isRecording) { mediaRecorder.stop(); isRecording = false; led.classList.remove('on'); }
             } else {
-                capturePhoto(); // Call new capture function
+                capturePhoto(); 
                 canvas.style.opacity = 0; setTimeout(()=>canvas.style.opacity=1, 100);
             }
             isLongPress = false;
         }
         btnA.addEventListener('mousedown', startPressA); btnA.addEventListener('touchstart', startPressA);
         btnA.addEventListener('mouseup', endPressA); btnA.addEventListener('touchend', endPressA);
-
         ['Up','Down','Left','Right'].forEach(d => document.getElementById('d'+d).addEventListener('click', (e)=>{ e.preventDefault(); handleDpad(d.toLowerCase()); }));
         
-        zoomSlider.addEventListener('input', (e) => { config.zoomLevel = parseFloat(e.target.value); showToast(`ZOOM: x${config.zoomLevel.toFixed(1)}`); });
-        btnResetZoom.addEventListener('click', (e) => { e.preventDefault(); zoomSlider.value = 1.0; config.zoomLevel = 1.0; });
-        btnReload.addEventListener('click', (e) => { e.preventDefault(); location.reload(); });
-        btnSave.addEventListener('click', saveMedia); btnCancel.addEventListener('click', hidePreview);
-
-        function updateLocation() {
-            config.locationName = "GETTING LOCATION...";
-            setTimeout(() => { config.locationName = "SHIBUYA, TOKYO"; showToast("LOCATION READY"); }, 1000);
-        }
-
-        function autoFitScreen() {
-            const scale = Math.min(window.innerWidth / 340, window.innerHeight / 600);
-            container.style.transform = `scale(${scale})`;
-        }
-        window.addEventListener('resize', autoFitScreen);
-        
-        autoFitScreen();
-        initCamera(); 
-        showToast("READY (1080P)");
+        updateLocation(); initCamera(); applyZoom(config.zoomLevel); showToast("READY (1080P)");
     </script>
 </body>
 </html>

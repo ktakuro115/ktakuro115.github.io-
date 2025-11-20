@@ -2,7 +2,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-    <title>GB Camera V16 (1080p) - Final Stable</title>
+    <title>GB Camera V16 (1080p) - Final</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -555,7 +555,8 @@
             }
             offCtx.putImageData(imgData,0,0);
 
-            // 2. メインキャンバスに拡大描画
+            // 2. メインキャンバスをクリアして拡大描画
+            ctx.clearRect(0, 0, FINAL_RES, FINAL_RES); // キャプチャ前のキャンバスクリアを明示
             ctx.imageSmoothingEnabled = false;
             ctx.drawImage(offCanvas, 0, 0, FINAL_RES, FINAL_RES);
 
@@ -684,8 +685,7 @@
                 if(isRecording) { mediaRecorder.stop(); isRecording = false; led.classList.remove('on'); }
             } else {
                 // 静止画キャプチャの安定化処理
-                ctx.clearRect(0, 0, FINAL_RES, FINAL_RES); // メインキャンバスをクリア
-                drawCurrentFrameOnCanvas(); // 強制的に最新のフレームを描画
+                drawCurrentFrameOnCanvas(); 
                 const dataURL = canvas.toDataURL('image/png', 1.0);
                 showImagePreview(dataURL);
                 canvas.style.opacity = 0; setTimeout(() => canvas.style.opacity = 1, 100);

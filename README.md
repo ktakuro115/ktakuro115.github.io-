@@ -2,7 +2,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=no">
-    <title>GB Camera V20 (Final)</title>
+    <title>GB Camera V21 (Buffer Fix)</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -84,7 +84,6 @@
             overflow: hidden; 
             background: #000;
             border: 2px solid #333;
-            /* コンテキスト作成 */
             isolation: isolate;
         }
 
@@ -98,18 +97,16 @@
             top: 0; left: 0;
         }
 
-        /* ★修正ポイント: 
-           録画用キャンバス(recCanvas)を最前面(z-index:50)に配置し、
-           opacity:0 (透明) にすることで、ブラウザに「表示中」と認識させつつ
-           ユーザーからは見えないようにする。これで描画省略を防ぐ。
-        */
+        /* 表示用 */
         #gbCanvas {
-            z-index: 10; /* 表示用 */
+            z-index: 10;
         }
+
+        /* 録画用: 完全な透明(0)だと描画省略されることがあるため、ごくわずかに不透明にする */
         #recCanvas { 
-            z-index: 50; /* 最前面 */
-            opacity: 0;  /* 透明 */
-            pointer-events: none; /* 操作透過 */
+            z-index: 50; 
+            opacity: 0.01; 
+            pointer-events: none; 
         }
 
         .scanlines {
@@ -219,7 +216,6 @@
                 <div class="screen-cover">
                     <canvas id="gbCanvas" width="1080" height="1080"></canvas>
                     <canvas id="recCanvas" width="540" height="540"></canvas>
-                    
                     <div class="scanlines"></div>
                     <div id="toast"></div>
                     <div id="previewContainer">
@@ -272,7 +268,6 @@
         }
         window.addEventListener('load', autoFitScreen); window.addEventListener('resize', autoFitScreen);
 
-        // 解像度
         const GB_RES = 135; 
         const DISP_RES = 1080; 
         const REC_RES = 540;   
@@ -290,12 +285,17 @@
         const frames = ["OFF", "LOCATION TAG", "DATETIME", "FILM", "SCANLINE", "WHITE BORDER"]; 
         const bayerMatrix = [[0, 8, 2, 10],[12, 4, 14, 6],[3, 11, 1, 9],[15, 7, 13, 5]];
 
-        // Canvas Init
         const gbCanvas = document.getElementById('gbCanvas');
         const gbCtx = gbCanvas.getContext('2d', { willReadFrequently: true });
         
         const recCanvas = document.getElementById('recCanvas');
         const recCtx = recCanvas.getContext('2d', { willReadFrequently: true });
+
+        // ★バッファ用キャンバス (フレーム合成用)
+        const bufferCanvas = document.createElement('canvas');
+        bufferCanvas.width = REC_RES; 
+        bufferCanvas.height = REC_RES;
+        const bufferCtx = bufferCanvas.getContext('2d', { willReadFrequently: true });
 
         const offCanvas = document.createElement('canvas');
         offCanvas.width = GB_RES; offCanvas.height = GB_RES;
@@ -467,11 +467,24 @@
             }
         }
 
+        // ★修正: バッファ経由で録画用フレームを生成する関数
+        function renderToRecCanvas() {
+            bufferCtx.imageSmoothingEnabled = false;
+            // 1. バッファに映像を描く
+            bufferCtx.drawImage(offCanvas, 0, 0, REC_RES, REC_RES);
+            // 2. バッファにフレームを重ねる
+            try {
+                drawOverlay(bufferCtx, REC_RES);
+            } catch(e) { console.warn(e); }
+            // 3. 完成した画像を録画用キャンバスに転写 (1回だけ描画)
+            recCtx.drawImage(bufferCanvas, 0, 0);
+        }
+
         function drawOverlay(ctx, size) {
             const type = frames[config.frameIdx];
-            // エラー防止: 16 COLORの時はパレット色が空なので処理を分ける
+            if (type === "OFF") return; // OFFなら何もしない
+
             const is16 = palettes[config.paletteIdx].name === "16 COLOR";
-            // 安全な色取得
             const pal = !is16 ? palettes[config.paletteIdx].colors : null;
             const dk = !is16 && pal ? `rgb(${pal[0].join(',')})` : '#000';
             const lt = !is16 && pal ? `rgb(${pal[3].join(',')})` : '#FFF';
@@ -515,9 +528,12 @@
             if (video.readyState === 4 && previewContainer.style.display !== 'flex') {
                 if (timestamp - lastTime >= 1000/FPS) {
                     if(processPixels()) {
+                        // 表示用 (直接描画)
                         renderFrame(gbCtx, DISP_RES);
+                        
+                        // 録画用 (バッファ経由)
                         if (isRecording) {
-                            renderFrame(recCtx, REC_RES);
+                            renderToRecCanvas();
                         }
                     }
                     lastTime = timestamp;
@@ -579,8 +595,8 @@
                 if (mediaRecorder && mediaRecorder.state === 'inactive') {
                     isLongPress = true;
                     recordedChunks = []; 
-                    // 録画開始前に確実に一度描画してキャンバスを汚す
-                    renderFrame(recCtx, REC_RES);
+                    // 録画開始時に一度強制描画
+                    renderToRecCanvas();
                     mediaRecorder.start(1000); 
                     isRecording = true; 
                     led.classList.add('on'); 

@@ -1,8 +1,9 @@
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=no">
-    <title>GB Camera V27 (Round Icon)</title>
+    <title>GB Camera V28 (Rec Fix)</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -121,6 +122,7 @@
         }
 
         #gbCanvas { z-index: 10; }
+        /* 録画用キャンバス: 透明度を確保しつつ描画除外されないようにする */
         #recCanvas { z-index: 50; opacity: 0.01; pointer-events: none; }
 
         .scanlines {
@@ -226,26 +228,26 @@
             line-height: 1; display: block;
         }
 
-        /* ★変更点: 丸い回転矢印を作成 */
+        /* 丸い回転矢印アイコン */
         #btnReload::after { 
             content: ""; 
             position: absolute; 
             top: 50%; left: 50%; 
             width: 10px; height: 10px; 
             border: 2px solid #333; 
-            border-radius: 50%; /* 丸く */
-            border-top: 2px solid transparent; /* 上部を開ける */
-            transform: translate(-50%, -50%) rotate(45deg); /* 角度調整 */
+            border-radius: 50%; 
+            border-top: 2px solid transparent; 
+            transform: translate(-50%, -50%) rotate(45deg); 
         }
         #btnReload::before {
             content: "";
             position: absolute;
-            top: 2px; right: 2px; /* 位置調整 */
+            top: 2px; right: 2px; 
             width: 0; height: 0;
             border-style: solid;
-            border-width: 0 4px 4px 4px; /* 三角形 */
+            border-width: 0 4px 4px 4px; 
             border-color: transparent transparent #333 transparent;
-            transform: rotate(55deg); /* 三角形の向き調整 */
+            transform: rotate(55deg); 
         }
 
         input[type=range] { -webkit-appearance: none; width: 140px; background: transparent; }
@@ -322,7 +324,6 @@
         }
         window.addEventListener('load', () => {
             autoFitScreen();
-            // Boot Animation
             setTimeout(() => {
                 const bs = document.getElementById('bootScreen');
                 bs.style.opacity = 0;
@@ -410,6 +411,10 @@
                 if (!recMimeType) {
                     showToast("REC NOT SUPPORTED");
                 } else {
+                    // ★修正: 録画用キャンバスを初期化してストリームを確実に有効化
+                    recCtx.fillStyle = '#000';
+                    recCtx.fillRect(0, 0, REC_RES, REC_RES);
+                    
                     const recStream = recCanvas.captureStream(FPS);
                     mediaRecorder = new MediaRecorder(recStream, { 
                         mimeType: recMimeType, 
@@ -532,6 +537,8 @@
 
         function renderToRecCanvas() {
             bufferCtx.imageSmoothingEnabled = false;
+            // ★修正: バッファを確実にクリアしてから描画
+            bufferCtx.clearRect(0, 0, REC_RES, REC_RES);
             bufferCtx.drawImage(offCanvas, 0, 0, REC_RES, REC_RES);
             try {
                 drawOverlay(bufferCtx, REC_RES);
@@ -588,6 +595,7 @@
                 if (timestamp - lastTime >= 1000/FPS) {
                     if(processPixels()) {
                         renderFrame(gbCtx, DISP_RES);
+                        // ★修正: 録画中は確実に録画用キャンバスを更新する
                         if (isRecording) {
                             renderToRecCanvas();
                         }
@@ -653,11 +661,15 @@
                 if (mediaRecorder && mediaRecorder.state === 'inactive') {
                     isLongPress = true;
                     recordedChunks = []; 
+                    
                     savedFrameIdx = config.frameIdx;
                     config.frameIdx = 0; 
-                    renderToRecCanvas();
-                    mediaRecorder.start(1000); 
+                    
+                    // ★修正: 録画開始フラグを立ててから強制描画、そして開始
                     isRecording = true; 
+                    renderToRecCanvas();
+                    
+                    mediaRecorder.start(1000); 
                     led.classList.add('on'); 
                     showToast("REC (FRAME OFF)");
                 }

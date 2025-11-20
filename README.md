@@ -2,7 +2,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-    <title>GB Camera V16 (1080p) - Full Screen Fixed D-PAD</title>
+    <title>GB Camera V16 (1080p) - Final</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -100,7 +100,7 @@
             background-color: var(--gb-screen-bg); 
             image-rendering: pixelated; 
             box-sizing: border-box;
-            transition: opacity 0.1s; /* フラッシュ効果用 */
+            transition: opacity 0.1s;
         }
 
         .scanlines {
@@ -119,13 +119,14 @@
         /* ----- PREVIEW OVERLAY STYLES ----- */
         #previewContainer {
             position: absolute;
-            top: 2px;
-            left: 2px;
+            top: 50%;   /* 中央揃え */
+            left: 50%;  /* 中央揃え */
+            transform: translate(-50%, -50%); /* 中央揃え */
             width: 220px;
             height: 220px;
             background: #000;
             z-index: 20;
-            display: none; /* 初期状態では非表示 */
+            display: none; 
             flex-direction: column;
             justify-content: center;
             align-items: center;
@@ -133,7 +134,7 @@
             color: white;
             padding: 0;
             box-sizing: border-box;
-            background-color: #222; /* 背景色 */
+            background-color: #222;
         }
 
         #previewMediaImg, #previewMediaVideo {
@@ -141,8 +142,8 @@
             max-height: 100%;
             object-fit: contain;
             display: none;
-            image-rendering: pixelated; /* 粗いドット感を維持 */
-            background-color: #000; /* 背景が黒くなるように */
+            image-rendering: pixelated;
+            background-color: #000;
         }
 
         #previewControls {
@@ -182,21 +183,27 @@
         .dpad-area { 
             position: absolute; 
             top: 10px; 
-            left: 45px; 
+            left: 45px; /* 配置調整済み */
             width: 100px; 
             height: 100px; 
         } 
-        .cross { background: #222; position: absolute; border-radius: 4px; box-shadow: 2px 2px 5px rgba(0,0,0,0.4); pointer-events: none; transition: transform 0.05s ease, box-shadow 0.05s ease; }
+        .cross { 
+            background: #222; position: absolute; border-radius: 4px; box-shadow: 2px 2px 5px rgba(0,0,0,0.4); 
+            pointer-events: none; transition: transform 0.05s ease, box-shadow 0.05s ease; 
+        }
         .c-h { width: 90px; height: 30px; top: 30px; left: 0; }
         .c-v { width: 30px; height: 90px; top: 0; left: 30px; }
-        .c-c { width: 30px; height: 30px; top: 30px; left: 30px; background:none; z-index: 2; box-shadow:inset 2px 2px 5px rgba(0,0,0,0.5); border-radius: 50%; }
+        .c-c { 
+            width: 30px; height: 30px; top: 30px; left: 30px; background:none; z-index: 2; 
+            box-shadow:inset 2px 2px 5px rgba(0,0,0,0.5); border-radius: 50%; 
+        }
         .d-btn { position: absolute; z-index: 10; cursor: pointer; -webkit-tap-highlight-color: transparent; }
         .d-up { width: 40px; height: 45px; top: -10px; left: 25px; }
         .d-down { width: 40px; height: 45px; bottom: -10px; left: 25px; }
         .d-left { width: 45px; height: 40px; top: 25px; left: -10px; }
         .d-right { width: 45px; height: 40px; top: 25px; right: -10px; }
         
-        /* D-PAD 凹み効果 */
+        /* D-PAD 凹み効果 (要望の機能) */
         .d-up:active ~ .cross.c-v { transform: translateY(-1px); box-shadow: inset 1px 1px 3px rgba(0,0,0,0.5); }
         .d-down:active ~ .cross.c-v { transform: translateY(1px); box-shadow: inset 1px 1px 3px rgba(0,0,0,0.5); }
         .d-left:active ~ .cross.c-h { transform: translateX(-1px); box-shadow: inset 1px 1px 3px rgba(0,0,0,0.5); }
@@ -207,8 +214,8 @@
         /* AB BUTTONS */
         .ab-area { 
             position: absolute; 
-            top: 10px;   /* ★修正: 10pxに調整 */
-            right: 25px; /* ★修正: 25pxに調整 */
+            top: 10px;   
+            right: 25px; 
             width: 130px; 
             height: 60px; 
             transform: rotate(-25deg); 

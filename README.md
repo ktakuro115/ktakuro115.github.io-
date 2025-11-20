@@ -519,6 +519,7 @@
             if (sx + cropDim > vw) cropDim = vw - sx;
             if (sy + cropDim > vh) cropDim = vh - sy;
             
+            // 1. 低解像度キャンバスに描画（クロップ、リサイズ）
             offCtx.drawImage(video, sx, sy, cropDim, cropDim, 0, 0, GB_RES, GB_RES);
             
             const is16Color = palettes[config.paletteIdx].name === "16 COLOR";
@@ -554,9 +555,11 @@
             }
             offCtx.putImageData(imgData,0,0);
 
+            // 2. メインキャンバスに拡大描画
             ctx.imageSmoothingEnabled = false;
             ctx.drawImage(offCanvas, 0, 0, FINAL_RES, FINAL_RES);
 
+            // 3. フレームの描画
             drawFrame(palettes[config.paletteIdx].colors, ctx); 
         }
 
@@ -567,7 +570,7 @@
                     return;
                 }
                 
-                // 動画ストリームとプレビューにフレームを反映させるために毎回描画
+                // 動画ストリームのラグを防ぐため、常に描画
                 drawCurrentFrameOnCanvas(); 
 
                 const is16Color = palettes[config.paletteIdx].name === "16 COLOR";

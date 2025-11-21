@@ -2,7 +2,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=no">
-    <title>GB Camera V30 (Fix Location)</title>
+    <title>GB Camera V32 (Scanline & Icon Fix)</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -212,20 +212,27 @@
 
         .slider-container { display: flex; align-items: center; gap: 10px; background: #b6b6b6; padding: 5px 15px; border-radius: 30px; box-shadow: inset 2px 2px 5px rgba(0,0,0,0.3), inset -1px -1px 2px rgba(255,255,255,0.5); }
         
+        /* ★修正: ボタン自体のスタイルで中央揃えを強化 */
         #btnResetZoom, #btnReload { 
             width: 20px; height: 20px; border-radius: 50%; background: #888; border: none; 
             box-shadow: 2px 2px 4px rgba(0,0,0,0.4), inset 1px 1px 2px rgba(255,255,255,0.4); 
             cursor: pointer; margin-left: 5px; transition: transform 0.05s; 
             position: relative;
+            /* flexで中央揃えにする */
+            display: flex; justify-content: center; align-items: center;
         }
         #btnResetZoom:active, #btnReload:active { transform: scale(0.9); box-shadow: inset 0 0 8px rgba(0,0,0,0.6); }
         
+        /* ★修正: Rボタンの位置調整 */
         #btnResetZoom::after { 
             content: "R"; font-size: 6px; color: #333;
+            /* position: absolute はそのままに、flexの影響で中央に来るはずだが念のため微調整 */
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); 
             line-height: 1; display: block;
+            margin-top: -0.5px; /* 微調整 */
         }
 
+        /* ★修正: リロードアイコンの位置調整 */
         #btnReload::after { 
             content: ""; 
             position: absolute; 
@@ -234,12 +241,15 @@
             border: 2px solid #333; 
             border-radius: 50%; 
             border-top: 2px solid transparent; 
+            /* 回転の中心がずれないように transform-origin を設定 */
+            transform-origin: center;
             transform: translate(-50%, -50%) rotate(45deg); 
         }
         #btnReload::before {
             content: "";
             position: absolute;
-            top: 2px; right: 2px; 
+            /* 矢印の位置を微調整 */
+            top: 3px; right: 3px; 
             width: 0; height: 0;
             border-style: solid;
             border-width: 0 4px 4px 4px; 
@@ -321,6 +331,8 @@
         }
         window.addEventListener('load', () => {
             autoFitScreen();
+            updateLocation();
+
             setTimeout(() => {
                 const bs = document.getElementById('bootScreen');
                 bs.style.opacity = 0;
@@ -334,8 +346,7 @@
         const REC_RES = 540;    
         
         const FPS = 24;
-        // 修正: 初期値を空文字列にして、ロード中であることを明確にする
-        const config = { paletteIdx: 0, frameIdx: 0, brightness: 0, contrast: 2, camFacing: 'environment', zoomLevel: 1.0, locationName: "" };
+        const config = { paletteIdx: 0, frameIdx: 0, brightness: 0, contrast: 2, camFacing: 'environment', zoomLevel: 1.0, locationName: "WAITING GPS..." };
         
         const palettes = [
             { name: "CLASSIC GREEN", colors: [[15,56,15], [48,98,48], [139,172,15], [155,188,15]], border: "#306230" },
@@ -344,7 +355,8 @@
             { name: "CYBER BLUE", colors: [[0,20,40], [0,70,110], [0,140,190], [180,230,255]], border: "#004070" },
             { name: "16 COLOR", colors: [], border: "#000" } 
         ];
-        const frames = ["OFF", "LOCATION TAG", "DATETIME", "FILM", "SCANLINE", "WHITE BORDER"]; 
+        // ★修正: SCANLINEを一番最後に移動
+        const frames = ["OFF", "LOCATION TAG", "DATETIME", "FILM", "WHITE BORDER", "SCANLINE"]; 
         const bayerMatrix = [[0, 8, 2, 10],[12, 4, 14, 6],[3, 11, 1, 9],[15, 7, 13, 5]];
 
         const gbCanvas = document.getElementById('gbCanvas');
@@ -553,19 +565,21 @@
             
             ctx.fillStyle = dk;
             const s = size / 1080;
-            const bs = 80 * s; 
+            const bs = 95 * s; 
             const fontSize = 40 * s;
 
             if (type === "FILM") {
-                const barH = 60 * s;
+                const barH = 110 * s;
                 ctx.fillRect(0, 0, size, barH); ctx.fillRect(0, size - barH, size, barH);
                 ctx.fillRect(0, 0, barH, size); ctx.fillRect(size - barH, 0, barH, size);
-                ctx.fillStyle = lt; ctx.font = `${fontSize}px 'Press Start 2P'`; 
-                ctx.fillText("POCKET CAM", 80 * s, 45 * s);
+                // ★修正: 文字描画を削除
+                // ctx.fillStyle = lt; ctx.font = `${fontSize}px 'Press Start 2P'`; 
+                // ctx.fillText("POCKET CAM", 80 * s, 75 * s);
             } else if (type === "SCANLINE") {
                 ctx.fillStyle = "rgba(0,0,0,0.2)";
-                const lineH = Math.max(1, 4 * s);
-                const gap = 8 * s;
+                // ★修正: ラインを太く (4 -> 8), 間隔を広く (8 -> 16)
+                const lineH = Math.max(1, 8 * s);
+                const gap = 16 * s;
                 for(let y=0; y<size; y+=gap) ctx.fillRect(0, y, size, lineH);
             } else if (type === "DATETIME") {
                 const now = new Date();
@@ -579,11 +593,9 @@
                 ctx.fillRect(0, 0, size, bs); ctx.fillRect(0, size-bs, size, bs);
                 ctx.fillRect(0, bs, bs, size-2*bs); ctx.fillRect(size-bs, bs, bs, size-2*bs);
             } else if (type === "LOCATION TAG") {
-                if (config.locationName) { // 修正: テキストがある時だけ描画
-                    ctx.fillStyle = dk; ctx.fillRect(0, 0, size, 80 * s);
-                    ctx.fillStyle = lt; ctx.font = `${fontSize}px 'Press Start 2P'`; 
-                    ctx.fillText(config.locationName, 80 * s, 55 * s);
-                }
+                ctx.fillStyle = dk; ctx.fillRect(0, 0, size, 80 * s);
+                ctx.fillStyle = lt; ctx.font = `${fontSize}px 'Press Start 2P'`; 
+                ctx.fillText(config.locationName, 80 * s, 55 * s);
             }
         }
 
@@ -658,6 +670,7 @@
                 if (mediaRecorder && mediaRecorder.state === 'inactive') {
                     isLongPress = true;
                     recordedChunks = []; 
+                    
                     savedFrameIdx = config.frameIdx;
                     config.frameIdx = 0; 
                     
@@ -705,14 +718,6 @@
                 config.locationName = "GPS NOT SUPPORTED";
                 return;
             }
-            
-            // 修正: キャッシュを無効化して強制的に現在の位置を取りに行く
-            const options = {
-                enableHighAccuracy: true, // GPS優先
-                timeout: 10000,           // 10秒まで待つ
-                maximumAge: 0             // 0ms = キャッシュを使わない
-            };
-
             navigator.geolocation.getCurrentPosition(async (pos) => {
                 const { latitude, longitude } = pos.coords;
                 try {
@@ -728,7 +733,7 @@
             }, (err) => {
                 console.error(err);
                 config.locationName = "GPS ERROR";
-            }, options);
+            });
         }
 
         initCamera(); 

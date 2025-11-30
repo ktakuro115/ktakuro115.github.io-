@@ -738,5 +738,11 @@
 
         initCamera(); 
     </script>
+    <style>
+  /* 最初の見出し（h1）を消す */
+  h1:first-of-type {
+    display: none !important;
+  }
+</style>
 </body>
 </html>
